@@ -1,0 +1,111 @@
+#include "llvm/IR/LegacyPassManager.h"
+#include "llvm/Passes/PassBuilder.h"
+#include "llvm/Passes/PassPlugin.h"
+#include "llvm/Support/raw_ostream.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/Value.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/BasicBlock.h"
+#include "llvm/IR/CFG.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/Analysis/AliasAnalysis.h"
+#include "llvm/IR/DebugInfoMetadata.h" // Add this include for DbgDeclareInst
+#include "llvm/ADT/DepthFirstIterator.h" 
+#include "llvm/Analysis/LoopInfo.h"
+#include "llvm/Analysis/ScalarEvolution.h"
+#include <map>
+#include <stack>
+#include <vector>
+#include <string>
+#include <cstdlib>
+#include <cmath>  
+#include <algorithm>
+#include <iostream>
+#include<set>
+#include<queue>
+#include "llvm/Support/CommandLine.h"
+#include "llvm/Analysis/AliasAnalysis.h"
+#include "llvm/Analysis/AliasSetTracker.h"
+using namespace llvm;
+namespace {
+
+struct scopePass : public PassInfoMixin<scopePass> {
+class scope{
+    public:
+    
+    scope(llvm::DILocalScope *CID)
+    {
+        ID=CID;
+    }
+    llvm::DILocalScope *ID;
+    scope * parent=nullptr; 
+};
+std::list<scope*> list;
+void insert( scope* node)
+{
+     auto it = std::find(list.begin(), list.end(), node);
+     if(it==list.end())
+     {
+        list.push_back(node);
+     }
+}
+
+
+PreservedAnalyses run(Function &F, FunctionAnalysisManager &FAM) {
+llvm::errs()<<"enter the pass  \n";
+int i=0;
+// auto &AA = FAM.getResult<AAManager>(F);// 
+// BatchAAResults BatchAA(AA);
+// AliasSetTracker AST(BatchAA);
+
+
+for (BasicBlock &BB:F)
+{
+for (llvm::Instruction &I :BB)
+{
+    if(isa<llvm::AllocaInst>(&I))
+    {
+        llvm::errs()<<I<<" \n";
+        // AST.add(&I);
+    }
+
+        if(MDNode *MD = I.getMetadata(LLVMContext::MD_dbg))
+                {
+                
+                if (auto *DILoc = dyn_cast<llvm::DILocation>(MD)) {
+                    
+                    llvm::DILocalScope *CID= DILoc->getScope();
+
+                   scope* node = new scope(CID);
+                   insert(node);
+                }
+                }
+}
+}
+
+
+
+            return PreservedAnalyses::all();
+        }
+
+
+};
+}
+
+
+llvm::PassPluginLibraryInfo getscopePassPluginInfo() {
+    return {LLVM_PLUGIN_API_VERSION, "scopePass", LLVM_VERSION_STRING, [](llvm::PassBuilder &PB) {
+        PB.registerPipelineParsingCallback([](llvm::StringRef Name, llvm::FunctionPassManager &MPM, llvm::ArrayRef<llvm::PassBuilder::PipelineElement>) {
+            if (Name == "scope") {
+                MPM.addPass(scopePass());
+                return true;
+            }
+            return false;
+        });
+    }};
+}
+
+// This is required to be loaded by the `opt` tool.
+extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginInfo() {
+    return getscopePassPluginInfo();
+}

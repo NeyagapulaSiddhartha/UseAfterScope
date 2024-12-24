@@ -1,0 +1,47 @@
+/*
+ * This file is distributed under the University of Illinois Open Source
+ * License. See LICENSE for details.
+ *
+ * \author: Markus Kusano
+ * \date: 2013-06-02
+ */
+
+#include "CallVisitor.h"
+
+// Enable debugging output
+//#define MUT_DEBUG
+
+#ifdef MUT_DEBUG
+#include "llvm/Support/raw_ostream.h"
+#endif
+
+
+
+
+
+
+void CallVisitor::visitCallInst(CallInst &I) {
+#ifdef MUT_DEBUG
+    errs() << "[DEBUG] Found Fence Inst\n";
+#endif
+
+        if (!isa<llvm::IntrinsicInst>(&I)) {
+            CallInsts.push_back(&I);
+        }
+
+
+       
+}
+
+unsigned CallVisitor::getSize() const {
+    return CallInsts.size();
+}
+
+CallInst *CallVisitor::getInst(unsigned index) const {
+    if (index < getSize()) {
+        return CallInsts[index];
+    }
+    else {
+        return NULL;
+    }
+}

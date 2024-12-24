@@ -1,0 +1,31 @@
+/*
+ * This file is distributed under the University of Illinois Open Source
+ * License. See LICENSE for details.
+ *
+ * \author: Markus Kusano
+ * \date: 2013-06-02
+ */
+
+#include "llvm/IR/InstVisitor.h"
+#include <vector>
+
+using namespace llvm;
+
+class CallVisitor : public InstVisitor<CallVisitor> {
+    public:
+        CallVisitor();
+        // Visitor function
+        void visitCallInst(CallInst &I);
+
+        // Data accessor functions
+        unsigned getSize() const;
+        // Returns NULL if index out-of-bounds
+        CallInst *getInst(unsigned index) const;
+
+
+
+    private:
+      
+        // Vector of all the found Call instructions
+        std::vector<CallInst *> CallInsts;
+};
