@@ -4,22 +4,19 @@ void fun(int *i){
 int foo(){
 
     int i=6;
-    int *ip=&i;
-    (*ip)++;
-    int *k;
-    k=ip;
-    (*k)++;
+    int j=8;
 
-    int t=0;
-    if(t*2>23)
-    {
-            int f=9; 
-            f++;
-            float g=6;
-            float *pg=&g;
-            (*pg)++;
-        
-        }
-    fun(&i);
+   int * p=&i;
+
+   int *q=&j;
+
+   (*p)++;
+   (*q)++;
+
+    p=&j;
+
+    (*p)++;
+
+    fun(p);
     return 1;
 }
