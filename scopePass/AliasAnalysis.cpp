@@ -1,276 +1,263 @@
-#include "llvm/Pass.h"
-#include "llvm/IR/Function.h"
-#include "llvm/Analysis/LoopInfo.h"
-#include "llvm/Support/raw_ostream.h"
-#include "llvm/IR/Constants.h"
-#include "llvm/IR/GlobalValue.h"
-#include "llvm/Transforms/Utils.h"
-#include "llvm/IR/Dominators.h"
-#include "llvm/IR/DebugLoc.h"
-#include "llvm/Analysis/PostDominators.h"
-#include "llvm/IR/InstrTypes.h"
-#include "llvm/IR/IRBuilder.h"
-#include "llvm/Transforms/Utils/Mem2Reg.h"
-#include "llvm/IR/Instructions.h"
-#include "llvm/ADT/StringRef.h"
-#include "llvm/IR/LegacyPassManager.h"
-// #include "llvm/Transforms/IPO/PassManagerBuilder.h"
-#include "llvm/IR/CFG.h"
-#include "llvm/Analysis/CFG.h"
-#include "llvm/Analysis/AliasAnalysis.h"
-#include "llvm/Analysis/TargetLibraryInfo.h"
-#include "llvm/Analysis/CallGraph.h"
-#include "llvm/IR/LLVMContext.h"
-#include "llvm/IR/Module.h"
-#include "llvm/IR/Type.h"
-#include<algorithm>
-#include <fstream>
-#include<map>
-#include<iostream>
-#include<vector>
-#include<set>
-#include<iterator>
-#include <tuple>
-#include <unordered_map> 
-#include <tuple>
-#include "llvm/Transforms/Utils/Cloning.h"
-#include <sstream>
-#include "llvm/Transforms/Scalar/SROA.h"
-#include "llvm/Transforms/Scalar.h"
-#include "AliasAnalysis.h"
-//Primary Driver Struct of the pass
-using namespace llvm;
+// #include "AliasAnalysis.h"
 
+// #define DEBUG 0
 
-   llvm::Value*  AggrAlias::get_true_value(llvm::Value *val)
-    {
-        std::vector<llvm::Instruction*>instr_set = {}; // Instruction Set to iterate over
-        if(llvm::Instruction *I = llvm::dyn_cast<llvm::Instruction>(val))
-        {
-            instr_set.push_back(I); // Insert the instruction into the instr_set to recursively travese
-        }
-        while(!instr_set.empty())
-        {
-            auto iter_instr = instr_set.begin();
-            if(llvm::isa<llvm::AllocaInst>(*iter_instr))
-            {
-                return *iter_instr;
-            }
-            else if (llvm::isa<llvm::CallInst>(*iter_instr))
-            {
-                return *iter_instr;
-            }
-            else if(llvm::LoadInst *LI = llvm::dyn_cast<llvm::LoadInst>(*iter_instr))
-            {
-                llvm::Value *val_inserter = LI->getPointerOperand();
-                if(llvm::isa<llvm::GlobalValue>(val_inserter))
-                {
-                    return val_inserter;
-                }
-                if(llvm::Instruction *I = llvm::dyn_cast<llvm::Instruction>(val_inserter))
-                {
-                    instr_set.push_back(I);
-                }
-                else if(llvm::isa<llvm::Argument>(val_inserter))
-                {
-                    return val_inserter;
-                }
-            }
-            else if(llvm::GetElementPtrInst *GEP = llvm::dyn_cast<llvm::GetElementPtrInst>(*iter_instr))
-            {
-                llvm::Value *val_inserter = GEP->getPointerOperand();
+// bool AggrAlias::is_changed(std::map<llvm::Value*, std::set<llvm::Value*>> old_map, 
+//         std::map<llvm::Value*, std::set<llvm::Value*>> new_map)
+// {
+//     bool flag_changed = false;
+//     for(auto iter = old_map.begin(); iter!=old_map.end(); iter++)
+//     {
+//         if(new_map.find(iter->first) == new_map.end())
+//         {
+//             flag_changed = true;
+//             return flag_changed;
+//         }
+//         else
+//         {
+//             for(auto ptr_iter = iter->second.begin(); ptr_iter!=iter->second.end(); ptr_iter++)
+//             {
+//                 if(new_map[iter->first].find(*ptr_iter) != new_map[iter->first].end())
+//                 {
+//                     continue;
+//                 }
+//                 else
+//                 {
+//                     flag_changed = true;
+//                     return flag_changed;
+//                 }
+//             }
+//         }
+//     }
+//     return flag_changed;
+// }
 
-                if(llvm::isa<llvm::GlobalValue>(val_inserter))
-                {
-                    return val_inserter;
-                }
-                if(llvm::Instruction *I = llvm::dyn_cast<llvm::Instruction>(val_inserter))
-                {
-                    instr_set.push_back(I);
-                }
-                else if(llvm::isa<llvm::Argument>(val_inserter))
-                {
-                    return val_inserter;
-                }
-            }
-            else if(llvm::CastInst *CSI = llvm::dyn_cast<llvm::CastInst>(*iter_instr))
-            {
-                llvm::Value *val_inserter = CSI->getOperand(0);
-                if(llvm::isa<llvm::GlobalValue>(val_inserter))
-                {
-                    return val_inserter;
-                }
-                if(llvm::Instruction *I = llvm::dyn_cast<llvm::Instruction>(val_inserter))
-                {
-                    instr_set.push_back(I);
-                }
-                else if(llvm::isa<llvm::Argument>(val_inserter))
-                {
-                    return val_inserter;
-                }
-            }
-            instr_set.erase(instr_set.begin());
-        }
-    }
+// //check if the two values are aliases at instruction instr
+// bool AggrAlias::isAlias(llvm::Value *val1, llvm::Value *val2, llvm::Instruction *instr)
+// {
+//     assert(val1->getType()->isPointerTy() && "val1 is not a pointer");
+//     assert(val2->getType()->isPointerTy() && "val2 is not a pointer");
+//     assert(instr!=nullptr && "Instruction is null");
 
-    //Return True LLVM::Value from a Intermediate Value for a Function
-   llvm::Value*   AggrAlias::get_true_value(llvm::Value *val, std::vector<llvm::Instruction*>caller_instr_stack)
-    {
-        #if DEBUG
-            errs()<<"DEBUGGING: Function Name: get_true_value\n"  ;
-        #endif
-        if(caller_instr_stack.empty())
-        {
-            return get_true_value(val);
-        }
-        std::vector<llvm::Value*>instr_set = {}; // Instruction Set to iterate over
-        instr_set.push_back(val); // Push the value in the instruction set
-        while(!instr_set.empty())
-        {
-            auto iter_instr = instr_set.begin();
-            if(llvm::isa<llvm::AllocaInst>(*iter_instr))
-            {
-                return *iter_instr;
-            }
-            else if(llvm::Argument *arg = llvm::dyn_cast<llvm::Argument>(*iter_instr))
-            {
-                llvm::Instruction *caller_instr = caller_instr_stack.back();
-                if(llvm::CallInst *CI = llvm::dyn_cast<llvm::CallInst>(caller_instr))
-                {
-                    llvm::Function *caller_func = CI->getCalledFunction();
-                    int iter_count = 0; //takes the count of the argument index
-                    for(auto arg_iter = caller_func->arg_begin(); arg_iter!=caller_func->arg_end(); arg_iter++)
-                    {
-                        if(llvm::Argument* val_arg_iter = llvm::dyn_cast<llvm::Argument>(arg_iter))
-                        {
-                            if(val_arg_iter == arg)
-                            {
-                                break;
-                            }
-                        }
-                        iter_count++;
-                    }
-                    //get the argument at that particular index
-                    llvm::Value *val_inserter = CI->getArgOperand(iter_count);
-                    instr_set.push_back(val_inserter);
-                }
-                else
-                {
-                    llvm::errs()<<"Error: The caller instruction is not a Call Instruction\n";
-                    exit(1);
-                }
-                caller_instr_stack.pop_back();
-            }
-            else if (llvm::CallInst *CI = llvm::dyn_cast<llvm::CallInst>(*iter_instr))
-            {
-                return *iter_instr;
-            }
-            else if(llvm::LoadInst *LI = llvm::dyn_cast<llvm::LoadInst>(*iter_instr))
-            {
-                // return LI->getPointerOperand();
-                llvm::Value *val_inserter = LI->getPointerOperand();
-                if(llvm::isa<llvm::GlobalValue>(val_inserter))
-                {
-                    return val_inserter;
-                }
-                if(llvm::isa<llvm::Instruction>(val_inserter))
-                {
-                    instr_set.push_back(val_inserter);
-                }
-                else if(llvm::isa<llvm::Argument>(val_inserter))
-                {
-                    instr_set.push_back(val_inserter);
-                }
-            }
-            else if(llvm::GetElementPtrInst *GEP = llvm::dyn_cast<llvm::GetElementPtrInst>(*iter_instr))
-            {
-                llvm::Value *val_inserter = GEP->getPointerOperand();
+//     //If alias Analysis has run atleast once
+//     static bool alias_analysis_run = false;
+//     if(!alias_analysis_run)
+//     {
+//         llvm::Module *M = instr->getModule();
+//         run_main(M); //run the alias analysis
+//         alias_analysis_run = true;
+//     }
 
-                if(llvm::isa<llvm::GlobalValue>(val_inserter))
-                {
-                    return val_inserter;
-                }
-                if(llvm::isa<llvm::Instruction>(val_inserter))
-                {
-                    instr_set.push_back(val_inserter);
-                }
-                else if(llvm::isa<llvm::Argument>(val_inserter))
-                {
-                    instr_set.push_back(val_inserter);
-                }
-                // return GEP->getPointerOperand();
-            }
-            else if(llvm::CastInst *CSI = llvm::dyn_cast<llvm::CastInst>(*iter_instr))
-            {
-                llvm::Value *val_inserter = CSI->getOperand(0);
-                if(llvm::isa<llvm::GlobalValue>(val_inserter))
-                {
-                    return val_inserter;
-                }
-                if(llvm::isa<llvm::Instruction>(val_inserter))
-                {
-                    instr_set.push_back(val_inserter);
-                }
-                else if(llvm::isa<llvm::Argument>(val_inserter))
-                {
-                    instr_set.push_back(val_inserter);;
-                }
-            }
-            instr_set.erase(instr_set.begin());
-        }
-    }
+//     std::set<llvm::Value*> f_pset = points_to_map_out[instr][val1];
+//     std::set<llvm::Value*> s_pset = points_to_map_out[instr][val2];
+//     for(auto iter = f_pset.begin(); iter!=f_pset.end(); iter++)
+//     {
+//         if(s_pset.find(*iter) != s_pset.end())
+//         {
+//             return true;
+//         }
+//     }
+//     return false;
+// }
 
-    llvm::Function *    AggrAlias::getFunction(llvm::Value *val)
-    {
-        if(llvm::Instruction *instr = llvm::dyn_cast<llvm::Instruction>(val))
-        {
-            return instr->getFunction();
-        }
-        else if(llvm::Argument *arg = llvm::dyn_cast<llvm::Argument>(val))
-        {
-            return arg->getParent();
-        }
-    }
+// std::vector<llvm::Instruction*> AggrAlias::getSuccessorInstructions(llvm::Instruction *instr)
+// {
+//     std::vector<llvm::Instruction*>successor_instr;
+//     // errs()<<*instr<<"\n"; //debug
+//     if(!instr->isTerminator())
+//     {
+//         successor_instr.push_back(instr->getNextNode());
+//     }
+//     else
+//     {
+//         for(int i=0; i<instr->getNumSuccessors(); i++)
+//         {
+//             llvm::BasicBlock *succ_bb = instr->getSuccessor(i);
+//             successor_instr.push_back(&succ_bb->front());
+//         }
+//     }
+//     return successor_instr;
+// }
 
-    bool    AggrAlias::isAlias(llvm::Value *val1, llvm::Value* val2)
-    {
-        //assertion checks
-        assert((val1!=nullptr || val2!=nullptr) && "Value is nullptr");
-        llvm::Value *val1_true = get_true_value(val1);
-        llvm::Value *val2_true = get_true_value(val2);
-        if(val1_true == val2_true)
-        {
-            return true;
-        }
-        else
-        {
-            return false;
-        }
-    }
+// std::vector<llvm::Instruction*> AggrAlias::getPredecessorInstructions(llvm::Instruction *instr)
+// {
+//     std::vector<llvm::Instruction*>predecessor_instr;
+//     llvm::BasicBlock *contain_bb = instr->getParent();
+//     llvm::Instruction *first_instr = &contain_bb->front();
+//     if(first_instr!=instr)
+//     {
+//         std::vector<llvm::Instruction*> temp_vector;
+//         for(auto iterator = contain_bb->begin(); iterator!=contain_bb->end(); iterator++)
+//         {
+//             if(&*iterator == instr)
+//             {
+//                 break;
+//             }
+//             temp_vector.push_back(&*iterator);
+//         }
+//         predecessor_instr.push_back(temp_vector.back());
+//     }
+//     else
+//     {
+//         for(auto pred_bb = pred_begin(contain_bb); pred_bb!=pred_end(contain_bb); pred_bb++)
+//         {
+//             predecessor_instr.push_back(&(*pred_bb)->back());
+//         }
+//     }
+//     return predecessor_instr;
+// }
 
-    bool  AggrAlias::isAlias_inter(llvm::Value *val1, std::vector<llvm::Instruction*> context1, 
-        llvm::Value* val2, std::vector<llvm::Instruction*> context2)
-    {
-        assert((val1!=nullptr || val2!=nullptr) && "Value is nullptr");
-        if(context1.size() == 0 && context2.size() == 0)
-        {
-            return isAlias(val1, val2); //Context is emty hence calling intraprocedural alias analysis
-        }
-        llvm::Function *func1 = getFunction(val1);
-        llvm::Function *func2 = getFunction(val2);
-        if(func1 == func2)
-        {
-            return isAlias(val1, val2);
-        }
-        llvm::Value* val1_true = get_true_value(val1, context1);
-        llvm::Value* val2_true = get_true_value(val2, context2);
-        if(val1_true == val2_true)
-        {
-            return true;
-        }
-        else
-        {
-            return false;
-        }
-    }
+// llvm::ReturnInst * AggrAlias::getReturnInstruction(llvm::Function *func)
+// {
+//     for(auto bb_iter = func->begin(); bb_iter!=func->end(); bb_iter++)
+//     {
+//         for(auto instr_iter = bb_iter->begin(); instr_iter!=bb_iter->end(); instr_iter++)
+//         {
+//             if(llvm::ReturnInst *RI = llvm::dyn_cast<llvm::ReturnInst>(instr_iter))
+//             {
+//                 return RI;
+//             }
+//         }
+//     }
+// }
 
+// void AggrAlias::run_alias_analysis(llvm::Function *func)
+// {
+
+//     #if DEBUG
+//         llvm::errs()<<"Running Alias Analysis for Function: "<<func->getName().str()<<"\n";
+//     #endif
+//     std::vector <llvm::Instruction*> worklist = {}; //worklist to iterate over the instructions
+//     std::vector <llvm::Instruction*> call_stack = {}; //call stack to keep track of the call instructions4
+//     std::set<llvm::Instruction*> visited_instr = {}; //set to keep track of the visited instructions
+//     if(llvm::Instruction *instr_start = llvm::dyn_cast<llvm::Instruction>(func->getEntryBlock().begin()))
+//     {
+//         worklist.push_back(instr_start);
+//     }
+//     make_alias_info(func, call_stack);
+//     while(!worklist.empty())
+//     {
+//         llvm::Instruction *instr = worklist.front();
+//         visited_instr.insert(instr);
+
+//         if(llvm::AllocaInst *AI = llvm::dyn_cast<llvm::AllocaInst>(instr))
+//         {
+//             points_to_map_out[instr][AI] = {AI};
+//         }
+//         else if(llvm::LoadInst *LI = llvm::dyn_cast<llvm::LoadInst>(instr))
+//         {
+//             llvm::Value *load_val = LI->getPointerOperand();
+//             points_to_map_out[instr][LI] = points_to_map_in[instr][load_val]; //copying the load val to the load instruction- value
+//         }
+//         else if (llvm::StoreInst *SI = llvm::dyn_cast<llvm::StoreInst>(instr))
+//         {
+//             llvm::Value *op_val = SI->getValueOperand();
+//             llvm::Value *ptr_val = SI->getPointerOperand();
+//             if(op_val->getType()->isPointerTy())
+//             {
+//                 points_to_map_out[instr][ptr_val] = points_to_map_in[instr][op_val];
+//             }
+//             else
+//             {
+//                 points_to_map_out[instr][ptr_val] = {op_val};
+//             }
+//         }
+//         else if(llvm::CallInst *CI = llvm::dyn_cast<llvm::CallInst>(instr))
+//         {
+//             llvm::Function *called_func = CI->getCalledFunction();
+//             call_stack.push_back(instr);
+//             //Impelement CallInstruction iter
+//             int count_arg = 0;
+//             for(auto iter = CI->arg_begin(); iter!=CI->arg_end(); iter++)
+//             {
+//                 llvm::Value *func_arg = called_func->getArg(count_arg);
+//                 llvm::Value *arg_val = *iter;
+//                 points_to_map_inter_in[CI][func_arg] = points_to_map_out[instr][arg_val];
+//                 count_arg++;
+//             }
+//             points_to_map_inter_in[CI] = points_to_map_in[instr];
+//             run_alias_analysis(called_func);
+//             call_stack.pop_back();
+//             points_to_map_out[instr] = points_to_map_inter_out[CI];
+//         }
+//         else
+//         {
+//             points_to_map_out[instr] = points_to_map_in[instr];
+//         }
+//         //get the successor instructions
+//         std::vector<llvm::Instruction*>successor_instr = getSuccessorInstructions(instr);
+//         for(auto iter = successor_instr.begin(); iter!=successor_instr.end(); iter++)
+//         {
+//             std::vector<llvm::Instruction*> pred_set = getPredecessorInstructions(*iter);
+//             std::map<llvm::Value*, std::set<llvm::Value*>> successor_points_to_set;
+//             for(auto iter_pred = pred_set.begin(); iter_pred!=pred_set.end(); iter_pred++)
+//             {
+//                 for(auto iter_val = points_to_map_out[*iter_pred].begin(); iter_val!=points_to_map_out[*iter_pred].end(); iter_val++)
+//                 {
+//                     for(auto iter_set = iter_val->second.begin(); iter_set!=iter_val->second.end(); iter_set++)
+//                     {
+//                         successor_points_to_set[iter_val->first].insert(*iter_set);
+//                     }
+//                 } 
+//             }
+//             if(visited_instr.find(*iter) == visited_instr.end() || 
+//                 is_changed(points_to_map_in[*iter], successor_points_to_set))
+//             {
+//                 points_to_map_in[*iter] = successor_points_to_set;
+//                 worklist.push_back(*iter);   
+//             }
+//             worklist.erase(worklist.begin());
+//         }
+//     }
+//     llvm::Instruction *ret_inst = getReturnInstruction(func);
+//     if(call_stack.empty()==false){
+//         llvm::Instruction *call_instr = call_stack.back();
+//         if(llvm::CallInst *CI = llvm::dyn_cast<llvm::CallInst>(call_instr))
+//         {
+//             points_to_map_inter_out[CI] = points_to_map_out[ret_inst];
+//             //remove the information of function local args from the points to map out
+//             for(auto iter = func->arg_begin(); iter!=func->arg_end(); iter++)
+//             {
+//                 llvm::Value *arg_val = iter;
+//                 if(points_to_map_inter_out[CI].find(arg_val) != points_to_map_inter_out[CI].end())
+//                     points_to_map_inter_out[CI][ret_inst].erase(arg_val);
+//             }
+//         }
+//     }
+//     #if DEBUG
+//         llvm::errs()<<"Alias Analysis Completed for Function: "<<func->getName().str()<<"\n";
+//         llvm::errs()<<"Call Site: "<<*(call_stack.back())<<"\n";
+//     #endif
+//     return;
+// }
+
+// void AggrAlias::make_alias_info(llvm::Function *func, std::vector<llvm::Instruction*>context)
+// {
+//     //initialize the points-to-set with the alloca instructions
+//     for(auto bb_iter = func->begin(); bb_iter!=func->end(); bb_iter++)
+//     {
+//         for(auto instr_iter = bb_iter->begin(); instr_iter!=bb_iter->end(); instr_iter++)
+//         {
+//             if(llvm::Instruction *instr = llvm::dyn_cast<llvm::Instruction>(instr_iter))
+//             {
+//                 points_to_map_in[instr] = {}; //initialize the points to map with empty set
+//                 points_to_map_out[instr] = {}; //initialize the points to map with empty set      
+//             }
+//         }
+//     }
+//     if(context.empty()==false)
+//     {
+//         llvm::Instruction *callsite_instr = context.back();
+//         if(llvm::CallInst *CI = llvm::dyn_cast<llvm::CallInst>(callsite_instr))
+//         {
+//             points_to_map_in[&func->getEntryBlock().front()] = points_to_map_inter_out[CI];
+//         }
+//     }
+//     run_alias_analysis(func); //Run the alias analysis for Module M (start from main function)
+// }
+
+// void AggrAlias::run_main(llvm::Module *M)
+// {
+//     llvm::Function *main_func = M->getFunction("main");
+//     run_alias_analysis(main_func); //start the alias analysis on every function
+// }

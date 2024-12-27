@@ -1,5 +1,5 @@
-
-
+#ifndef SAliasAnalysis_H
+#define SAliasAnalysis_H
 #include "llvm/Pass.h"
 #include "llvm/IR/Function.h"
 #include "llvm/Analysis/LoopInfo.h"
@@ -40,16 +40,38 @@
 #include "llvm/Transforms/Scalar/SROA.h"
 #include "llvm/Transforms/Scalar.h"
 
+//Primary Driver Struct of the pass
+using namespace llvm;
 
 class AggrAlias{
+    
+    private:
+    std::map<llvm::Instruction*, std::map<llvm::Value*, std::set<llvm::Value*>>> points_to_map_in;
+    std::map<llvm::Instruction*, std::map<llvm::Value*, std::set<llvm::Value*>>> points_to_map_out;
+
+    std::map<llvm::CallInst*, std::map<llvm::Value*, std::set<llvm::Value*>>> points_to_map_inter_in; // Inter In Map
+    std::map<llvm::CallInst*, std::map<llvm::Value*, std::set<llvm::Value*>>> points_to_map_inter_out; //Inter Out Map
+    
     public:
+    //See if the old points to map and new points to map are different
+    bool is_changed(std::map<llvm::Value*, std::set<llvm::Value*>> old_map, 
+        std::map<llvm::Value*, std::set<llvm::Value*>> new_map);
 
-    llvm::Value* get_true_value(llvm::Value *val);
-    llvm::Value* get_true_value(llvm::Value *val, std::vector<llvm::Instruction*>caller_instr_stack);
-    llvm::Function *getFunction(llvm::Value *val);
-    bool isAlias(llvm::Value *val1, llvm::Value* val2);
-    bool isAlias_inter(llvm::Value *val1, std::vector<llvm::Instruction*> context1, llvm::Value* val2, std::vector<llvm::Instruction*> context2);
+    //check if the two values are aliases at instruction instr
+    bool isAlias(llvm::Value *val1, llvm::Value *val2, llvm::Instruction *instr);
 
+    std::vector<llvm::Instruction*> getSuccessorInstructions(llvm::Instruction *instr);
 
+    std::vector<llvm::Instruction*> getPredecessorInstructions(llvm::Instruction *instr);
+
+    void run_alias_analysis(llvm::Function *func);
+
+    void make_alias_info(llvm::Function *func, std::vector<llvm::Instruction*>context);
+
+    llvm::ReturnInst * getReturnInstruction(llvm::Function *func);
+
+    void run_main(llvm::Module *M);
 
 };
+#endif
+

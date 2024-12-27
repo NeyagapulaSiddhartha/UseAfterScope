@@ -28,38 +28,32 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 #include "AliasAnalysis.h"
+#include "/home/cs23mtech12010/CCM/CCMutator/llvm-project/llvm/include/llvm/Transforms/Tools/EnumerateCallInst.h"
+
 using namespace llvm;
 
 namespace {
 struct scopePass : public PassInfoMixin<scopePass> {
   static char ID;
 
-  class scope {
-  public:
-    scope(llvm::DILocalScope *CID) { ID = CID; }
-    llvm::DILocalScope *ID;
-    scope *parent = nullptr;
-  };
-  std::list<scope *> list;
-  void insert(scope *node) {
-    auto it = std::find(list.begin(), list.end(), node);
-    if (it == list.end()) {
-      list.push_back(node);
-    }
-  }
+
+
+
+
+std::list<llvm::DILocalScope*> ScpList;
 
 std::list<llvm::AllocaInst*> AlocList;
 
 std::list<llvm::AllocaInst*> IntraAliases(llvm::Value* V){
 std::list<llvm::AllocaInst*> Temp;
-AggrAlias A;
-for (auto x : AlocList){
 
+// AggrAlias A;
+// for (auto x : AlocList){
 
-  if(A.isAlias(x, V)){
-    Temp.push_back(x);
-  }
-}
+//   if(A.isAlias(x, V)){
+//     Temp.push_back(x);
+//   }
+// }
 
 return Temp;
 }
@@ -79,71 +73,34 @@ return Temp;
   BatchAAResults BatchAA(AA);
   AliasSetTracker AST(BatchAA);
 
-     AggrAlias A;
-// for (auto &BB : F) {
-//   for(auto &I : BB){
-//    for( auto &BB1 : F){
-//     for(auto &I1 : BB1){
-//        if((isa<llvm::AllocaInst>(&I) || isa<llvm::LoadInst>(&I) ||isa<llvm::LoadInst>(&I) )&& ( isa<llvm::AllocaInst>(&I1) || isa<llvm::LoadInst>(&I1) ||isa<llvm::LoadInst>(&I1) )){
-//       if(A.isAlias(dyn_cast<llvm::Value>(&I),dyn_cast<llvm::Value>( &I1))){
-//         errs()<<I<<" and "<<I1<<" are alias---------\n"; 
-//        }
-//       // else{
-//       //   // errs()<<I<<" and "<<I1<<" are not alias---------\n";
-//       // }
-//       }
-//     }
-//    }
-//   }
-// }
-    
+    //  AggrAlias A;
 
-    errs() << "scopePass\n";
-    // FunctionAnalysisManager &FAM =
-    // MAM.getResult<FunctionAnalysisManagerModuleProxy>(M).getManager();
-    // llvm::Function *F = M.getFunction("foo");
-    // auto &AA = FAM.getResult<AAManager>(F);
-    // BatchAAResults BatchAA(AA);
-    // AliasSetTracker AST(BatchAA);
-
-    for (BasicBlock &BB : F) {
+         for (BasicBlock &BB : F) {
       for (llvm::Instruction &I : BB) {
         if (isa<llvm::AllocaInst>(&I)) {
           // llvm::errs() << I << " \n";
-          AST.add(&I);
+          
           AlocList.push_back(dyn_cast<llvm::AllocaInst>(&I));
         }
-
-        if (MDNode *MD = I.getMetadata(LLVMContext::MD_dbg)) {
-
-          if (auto *DILoc = dyn_cast<llvm::DILocation>(MD)) {
-
-            llvm::DILocalScope *CID = DILoc->getScope();
-
-            scope *node = new scope(CID);
-            insert(node);
-          }
-        }
-        if (isa<llvm::LoadInst>(&I)) {
-          AST.add(dyn_cast<llvm::LoadInst>(&I));
-
-          // errs()<<*A.get_true_value(dyn_cast<llvm::Value>(&I));
-        }
-        if (isa<llvm::StoreInst>(&I)) {
-          AST.add(dyn_cast<llvm::StoreInst>(&I));
-        }
-
-        if (isa<llvm::CallInst>(&I) && !isa<llvm::IntrinsicInst>(&I)) {
-          llvm::CallInst *C = dyn_cast<llvm::CallInst>(&I);
-          // errs() << *C->getOperand(0) << " \n";
-
-          // AA.getModRefInfoMask(C->getOperand(0));
-        }
-        // AST.dump();
-        // 	for (AliasSet &AS : AST)
-        //    AS.dump();
+        AST.add(&I);
       }
     }
+
+    EnumerateCallInst ECI;
+      ECI.AA=&AST;
+      AggrAlias SAA;
+      // ECI.SAA=&SAA;
+      ECI.ThreadCreateName("pthread_create");
+      ECI.ThreadJoinName("pthread_join");
+      ECI.visit(F);
+      ECI.printInstDebugInfo(1);
+      ECI.printInstDebugInfo(2);
+
+
+    errs() << "scopePass\n";
+
+
+
 
 
     
@@ -166,39 +123,7 @@ return Temp;
   //             }
   //     }
   // }
-  for(BasicBlock &BB :F){
-    for (Instruction &I :BB){
-      if(isa<llvm::CallInst>(&I) && !isa<llvm::IntrinsicInst>(&I)){
-        auto C = dyn_cast<CallInst>(&I);
-        auto op = C->getOperand(0);
-        auto L= dyn_cast<LoadInst>(op);
-        const MemoryLocation MemLoc=MemoryLocation::get(L);
-       AliasSet  &x= AST.getAliasSetFor(MemLoc);
-                     for (const auto &A : x) {
-                Value *Ptr = A.getValue();
-                // Alias tracker should have pointers of same data type.
-                errs()<<*Ptr <<"the aliases -- of arguments --\n";
-              }
-      }
-    }
-  }
 
-
-
-    for(BasicBlock &BB :F){
-    for (Instruction &I :BB){
-      if(isa<llvm::CallInst>(&I) && !isa<llvm::IntrinsicInst>(&I)){
-        auto C = dyn_cast<CallInst>(&I);
-        auto op = C->getOperand(0);
-      auto P= IntraAliases(op);
-      errs()<<"the alias sets for func args are \n";
-      for(auto x : P){
-        errs()<<*x<<"\n";
-      }
-
-      }
-    }
-  }
 
   
 
