@@ -5,76 +5,130 @@ target triple = "x86_64-unknown-linux-gnu"
 
 @.str = private unnamed_addr constant [26 x i8] c"Hello from Thread 2! ID:\0A\00", align 1, !dbg !0
 
-; Function Attrs: mustprogress noinline nounwind optnone uwtable
-define dso_local void @_Z3funPi(ptr noundef %0) #0 !dbg !265 {
+; Function Attrs: mustprogress noinline optnone uwtable
+define dso_local noundef ptr @_Z15threadFunction2Pv(ptr noundef %0) #0 !dbg !265 {
   %2 = alloca ptr, align 8
   store ptr %0, ptr %2, align 8
-  call void @llvm.dbg.declare(metadata ptr %2, metadata !270, metadata !DIExpression()), !dbg !271
-  ret void, !dbg !272
+  call void @llvm.dbg.declare(metadata ptr %2, metadata !269, metadata !DIExpression()), !dbg !270
+  %3 = call i32 (ptr, ...) @printf(ptr noundef @.str), !dbg !271
+  ret ptr null, !dbg !272
 }
 
 ; Function Attrs: nocallback nofree nosync nounwind speculatable willreturn memory(none)
 declare void @llvm.dbg.declare(metadata, metadata, metadata) #1
 
-; Function Attrs: mustprogress noinline optnone uwtable
-define dso_local noundef ptr @_Z15threadFunction2Pv(ptr noundef %0) #2 !dbg !273 {
+declare i32 @printf(ptr noundef, ...) #2
+
+; Function Attrs: mustprogress noinline nounwind optnone uwtable
+define dso_local void @_Z4fun3PPi(ptr noundef %0) #3 !dbg !273 {
   %2 = alloca ptr, align 8
+  %3 = alloca ptr, align 8
+  %4 = alloca i64, align 8
   store ptr %0, ptr %2, align 8
-  call void @llvm.dbg.declare(metadata ptr %2, metadata !276, metadata !DIExpression()), !dbg !277
-  %3 = call i32 (ptr, ...) @printf(ptr noundef @.str), !dbg !278
-  ret ptr null, !dbg !279
+  call void @llvm.dbg.declare(metadata ptr %2, metadata !278, metadata !DIExpression()), !dbg !279
+  call void @llvm.dbg.declare(metadata ptr %3, metadata !280, metadata !DIExpression()), !dbg !281
+  %5 = load ptr, ptr %2, align 8, !dbg !282
+  %6 = load ptr, ptr %5, align 8, !dbg !283
+  store ptr %6, ptr %3, align 8, !dbg !284
+  call void @llvm.dbg.declare(metadata ptr %4, metadata !285, metadata !DIExpression()), !dbg !288
+  %7 = load ptr, ptr %2, align 8, !dbg !289
+  %8 = load ptr, ptr %7, align 8, !dbg !290
+  %9 = call i32 @pthread_create(ptr noundef %4, ptr noundef null, ptr noundef @_Z15threadFunction2Pv, ptr noundef %8) #6, !dbg !291
+  ret void, !dbg !292
 }
 
-declare i32 @printf(ptr noundef, ...) #3
+; Function Attrs: nounwind
+declare i32 @pthread_create(ptr noundef, ptr noundef, ptr noundef, ptr noundef) #4
+
+; Function Attrs: mustprogress noinline nounwind optnone uwtable
+define dso_local void @_Z3funPi(ptr noundef %0) #3 !dbg !293 {
+  %2 = alloca ptr, align 8
+  %3 = alloca ptr, align 8
+  store ptr %0, ptr %2, align 8
+  call void @llvm.dbg.declare(metadata ptr %2, metadata !296, metadata !DIExpression()), !dbg !297
+  call void @llvm.dbg.declare(metadata ptr %3, metadata !298, metadata !DIExpression()), !dbg !299
+  %4 = load ptr, ptr %2, align 8, !dbg !300
+  store ptr %4, ptr %3, align 8, !dbg !301
+  ret void, !dbg !302
+}
+
+; Function Attrs: mustprogress noinline nounwind optnone uwtable
+define dso_local void @_Z4fun2PPi(ptr noundef %0) #3 !dbg !303 {
+  %2 = alloca ptr, align 8
+  %3 = alloca ptr, align 8
+  store ptr %0, ptr %2, align 8
+  call void @llvm.dbg.declare(metadata ptr %2, metadata !304, metadata !DIExpression()), !dbg !305
+  call void @llvm.dbg.declare(metadata ptr %3, metadata !306, metadata !DIExpression()), !dbg !307
+  %4 = load ptr, ptr %2, align 8, !dbg !308
+  %5 = load ptr, ptr %4, align 8, !dbg !309
+  store ptr %5, ptr %3, align 8, !dbg !310
+  %6 = load ptr, ptr %2, align 8, !dbg !311
+  call void @_Z4fun3PPi(ptr noundef %6), !dbg !312
+  ret void, !dbg !313
+}
 
 ; Function Attrs: mustprogress noinline norecurse optnone uwtable
-define dso_local noundef i32 @main() #4 !dbg !280 {
+define dso_local noundef i32 @main() #5 !dbg !314 {
   %1 = alloca i32, align 4
   %2 = alloca i64, align 8
   %3 = alloca i64, align 8
   %4 = alloca i32, align 4
+  %5 = alloca ptr, align 8
+  %6 = alloca ptr, align 8
+  %7 = alloca ptr, align 8
   store i32 0, ptr %1, align 4
-  call void @llvm.dbg.declare(metadata ptr %2, metadata !281, metadata !DIExpression()), !dbg !284
-  call void @llvm.dbg.declare(metadata ptr %3, metadata !285, metadata !DIExpression()), !dbg !286
-  call void @llvm.dbg.declare(metadata ptr %4, metadata !287, metadata !DIExpression()), !dbg !288
-  store i32 9, ptr %4, align 4, !dbg !288
-  %5 = call i32 @pthread_create(ptr noundef %2, ptr noundef null, ptr noundef @_Z15threadFunction2Pv, ptr noundef null) #6, !dbg !289
-  %6 = call i32 @pthread_create(ptr noundef %3, ptr noundef null, ptr noundef @_Z15threadFunction2Pv, ptr noundef %4) #6, !dbg !290
-  %7 = load i32, ptr %4, align 4, !dbg !291
-  %8 = load i32, ptr %4, align 4, !dbg !293
-  %9 = mul nsw i32 %7, %8, !dbg !294
-  %10 = load i32, ptr %4, align 4, !dbg !295
-  %11 = sub nsw i32 %10, 1, !dbg !296
-  %12 = icmp sgt i32 %9, %11, !dbg !297
-  br i1 %12, label %13, label %18, !dbg !298
+  call void @llvm.dbg.declare(metadata ptr %2, metadata !315, metadata !DIExpression()), !dbg !316
+  call void @llvm.dbg.declare(metadata ptr %3, metadata !317, metadata !DIExpression()), !dbg !318
+  call void @llvm.dbg.declare(metadata ptr %4, metadata !319, metadata !DIExpression()), !dbg !320
+  store i32 9, ptr %4, align 4, !dbg !320
+  call void @llvm.dbg.declare(metadata ptr %5, metadata !321, metadata !DIExpression()), !dbg !322
+  call void @llvm.dbg.declare(metadata ptr %6, metadata !323, metadata !DIExpression()), !dbg !324
+  store ptr %4, ptr %6, align 8, !dbg !325
+  store ptr %6, ptr %5, align 8, !dbg !326
+  %8 = load ptr, ptr %5, align 8, !dbg !327
+  %9 = load ptr, ptr %8, align 8, !dbg !328
+  %10 = load i32, ptr %9, align 4, !dbg !329
+  %11 = add nsw i32 %10, 1, !dbg !329
+  store i32 %11, ptr %9, align 4, !dbg !329
+  call void @llvm.dbg.declare(metadata ptr %7, metadata !330, metadata !DIExpression()), !dbg !331
+  %12 = load ptr, ptr %5, align 8, !dbg !332
+  store ptr %12, ptr %7, align 8, !dbg !333
+  %13 = load ptr, ptr %5, align 8, !dbg !334
+  call void @_Z4fun2PPi(ptr noundef %13), !dbg !335
+  %14 = call i32 @pthread_create(ptr noundef %2, ptr noundef null, ptr noundef @_Z15threadFunction2Pv, ptr noundef null) #6, !dbg !336
+  %15 = call i32 @pthread_create(ptr noundef %3, ptr noundef null, ptr noundef @_Z15threadFunction2Pv, ptr noundef %4) #6, !dbg !337
+  %16 = load i32, ptr %4, align 4, !dbg !338
+  %17 = load i32, ptr %4, align 4, !dbg !340
+  %18 = mul nsw i32 %16, %17, !dbg !341
+  %19 = load i32, ptr %4, align 4, !dbg !342
+  %20 = sub nsw i32 %19, 1, !dbg !343
+  %21 = icmp sgt i32 %18, %20, !dbg !344
+  br i1 %21, label %22, label %27, !dbg !345
 
-13:                                               ; preds = %0
-  %14 = load i64, ptr %2, align 8, !dbg !299
-  %15 = call i32 @pthread_join(i64 noundef %14, ptr noundef null), !dbg !301
-  %16 = load i64, ptr %3, align 8, !dbg !302
-  %17 = call i32 @pthread_join(i64 noundef %16, ptr noundef null), !dbg !303
-  br label %21, !dbg !304
+22:                                               ; preds = %0
+  %23 = load i64, ptr %2, align 8, !dbg !346
+  %24 = call i32 @pthread_join(i64 noundef %23, ptr noundef null), !dbg !348
+  %25 = load i64, ptr %3, align 8, !dbg !349
+  %26 = call i32 @pthread_join(i64 noundef %25, ptr noundef null), !dbg !350
+  br label %30, !dbg !351
 
-18:                                               ; preds = %0
-  %19 = load i64, ptr %2, align 8, !dbg !305
-  %20 = call i32 @pthread_join(i64 noundef %19, ptr noundef null), !dbg !307
-  br label %21
+27:                                               ; preds = %0
+  %28 = load i64, ptr %2, align 8, !dbg !352
+  %29 = call i32 @pthread_join(i64 noundef %28, ptr noundef null), !dbg !354
+  br label %30
 
-21:                                               ; preds = %18, %13
-  ret i32 0, !dbg !308
+30:                                               ; preds = %27, %22
+  ret i32 0, !dbg !355
 }
 
-; Function Attrs: nounwind
-declare i32 @pthread_create(ptr noundef, ptr noundef, ptr noundef, ptr noundef) #5
+declare i32 @pthread_join(i64 noundef, ptr noundef) #2
 
-declare i32 @pthread_join(i64 noundef, ptr noundef) #3
-
-attributes #0 = { mustprogress noinline nounwind optnone uwtable "frame-pointer"="all" "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
+attributes #0 = { mustprogress noinline optnone uwtable "frame-pointer"="all" "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
 attributes #1 = { nocallback nofree nosync nounwind speculatable willreturn memory(none) }
-attributes #2 = { mustprogress noinline optnone uwtable "frame-pointer"="all" "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
-attributes #3 = { "frame-pointer"="all" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
-attributes #4 = { mustprogress noinline norecurse optnone uwtable "frame-pointer"="all" "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
-attributes #5 = { nounwind "frame-pointer"="all" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
+attributes #2 = { "frame-pointer"="all" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
+attributes #3 = { mustprogress noinline nounwind optnone uwtable "frame-pointer"="all" "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
+attributes #4 = { nounwind "frame-pointer"="all" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
+attributes #5 = { mustprogress noinline norecurse optnone uwtable "frame-pointer"="all" "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
 attributes #6 = { nounwind }
 
 !llvm.dbg.cu = !{!8}
@@ -82,15 +136,15 @@ attributes #6 = { nounwind }
 !llvm.ident = !{!264}
 
 !0 = !DIGlobalVariableExpression(var: !1, expr: !DIExpression())
-!1 = distinct !DIGlobalVariable(scope: null, file: !2, line: 14, type: !3, isLocal: true, isDefinition: true)
-!2 = !DIFile(filename: "llvm/lib/Transforms/scopePass/test/testTWOJOINS.cpp", directory: "/home/cs23mtech12010/CCM/CCMutator/llvm-project", checksumkind: CSK_MD5, checksum: "938e9b0487dd556a4dc9b4ffdd1007e4")
+!1 = distinct !DIGlobalVariable(scope: null, file: !2, line: 6, type: !3, isLocal: true, isDefinition: true)
+!2 = !DIFile(filename: "llvm/lib/Transforms/scopePass/test/testTWOJOINS.cpp", directory: "/home/cs23mtech12010/CCM/CCMutator/llvm-project", checksumkind: CSK_MD5, checksum: "2c3696142491555dce01144a6bd39929")
 !3 = !DICompositeType(tag: DW_TAG_array_type, baseType: !4, size: 208, elements: !6)
 !4 = !DIDerivedType(tag: DW_TAG_const_type, baseType: !5)
 !5 = !DIBasicType(name: "char", size: 8, encoding: DW_ATE_signed_char)
 !6 = !{!7}
 !7 = !DISubrange(count: 26)
 !8 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus_14, file: !9, producer: "clang version 17.0.0 (https://github.com/llvm/llvm-project.git 88bf774c565080e30e0a073676c316ab175303af)", isOptimized: false, runtimeVersion: 0, emissionKind: FullDebug, globals: !10, imports: !11, splitDebugInlining: false, nameTableKind: None)
-!9 = !DIFile(filename: "/home/cs23mtech12010/CCM/CCMutator/llvm-project/llvm/lib/Transforms/scopePass/test/testTWOJOINS.cpp", directory: "/home/cs23mtech12010/CCM/CCMutator/llvm-project/build", checksumkind: CSK_MD5, checksum: "938e9b0487dd556a4dc9b4ffdd1007e4")
+!9 = !DIFile(filename: "/home/cs23mtech12010/CCM/CCMutator/llvm-project/llvm/lib/Transforms/scopePass/test/testTWOJOINS.cpp", directory: "/home/cs23mtech12010/CCM/CCMutator/llvm-project/build", checksumkind: CSK_MD5, checksum: "2c3696142491555dce01144a6bd39929")
 !10 = !{!0}
 !11 = !{!12, !20, !24, !31, !35, !43, !48, !50, !56, !60, !64, !74, !76, !80, !84, !88, !93, !97, !101, !105, !109, !117, !121, !125, !127, !131, !135, !140, !146, !150, !154, !156, !164, !168, !176, !178, !182, !186, !190, !194, !199, !204, !209, !210, !211, !212, !214, !215, !216, !217, !218, !219, !220, !222, !223, !224, !225, !226, !227, !228, !233, !234, !235, !236, !237, !238, !239, !240, !241, !242, !243, !244, !245, !246, !247, !248, !249, !250, !251, !252, !253, !254, !255, !256}
 !12 = !DIImportedEntity(tag: DW_TAG_imported_declaration, scope: !13, entity: !14, file: !19, line: 52)
@@ -346,47 +400,94 @@ attributes #6 = { nounwind }
 !262 = !{i32 7, !"uwtable", i32 2}
 !263 = !{i32 7, !"frame-pointer", i32 2}
 !264 = !{!"clang version 17.0.0 (https://github.com/llvm/llvm-project.git 88bf774c565080e30e0a073676c316ab175303af)"}
-!265 = distinct !DISubprogram(name: "fun", linkageName: "_Z3funPi", scope: !2, file: !2, line: 7, type: !266, scopeLine: 7, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !8, retainedNodes: !269)
+!265 = distinct !DISubprogram(name: "threadFunction2", linkageName: "_Z15threadFunction2Pv", scope: !2, file: !2, line: 5, type: !266, scopeLine: 5, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !8, retainedNodes: !268)
 !266 = !DISubroutineType(types: !267)
-!267 = !{null, !268}
-!268 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !18, size: 64)
-!269 = !{}
-!270 = !DILocalVariable(name: "i", arg: 1, scope: !265, file: !2, line: 7, type: !268)
-!271 = !DILocation(line: 7, column: 15, scope: !265)
-!272 = !DILocation(line: 8, column: 5, scope: !265)
-!273 = distinct !DISubprogram(name: "threadFunction2", linkageName: "_Z15threadFunction2Pv", scope: !2, file: !2, line: 13, type: !274, scopeLine: 13, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !8, retainedNodes: !269)
+!267 = !{!39, !39}
+!268 = !{}
+!269 = !DILocalVariable(name: "arg", arg: 1, scope: !265, file: !2, line: 5, type: !39)
+!270 = !DILocation(line: 5, column: 29, scope: !265)
+!271 = !DILocation(line: 6, column: 5, scope: !265)
+!272 = !DILocation(line: 7, column: 5, scope: !265)
+!273 = distinct !DISubprogram(name: "fun3", linkageName: "_Z4fun3PPi", scope: !2, file: !2, line: 10, type: !274, scopeLine: 10, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !8, retainedNodes: !268)
 !274 = !DISubroutineType(types: !275)
-!275 = !{!39, !39}
-!276 = !DILocalVariable(name: "arg", arg: 1, scope: !273, file: !2, line: 13, type: !39)
-!277 = !DILocation(line: 13, column: 29, scope: !273)
-!278 = !DILocation(line: 14, column: 5, scope: !273)
-!279 = !DILocation(line: 15, column: 5, scope: !273)
-!280 = distinct !DISubprogram(name: "main", scope: !2, file: !2, line: 21, type: !129, scopeLine: 21, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !8, retainedNodes: !269)
-!281 = !DILocalVariable(name: "thread1", scope: !280, file: !2, line: 22, type: !282)
-!282 = !DIDerivedType(tag: DW_TAG_typedef, name: "pthread_t", file: !283, line: 27, baseType: !42)
-!283 = !DIFile(filename: "/usr/include/x86_64-linux-gnu/bits/pthreadtypes.h", directory: "", checksumkind: CSK_MD5, checksum: "2d764266ce95ab26d4a4767c2ec78176")
-!284 = !DILocation(line: 22, column: 15, scope: !280)
-!285 = !DILocalVariable(name: "thread2", scope: !280, file: !2, line: 22, type: !282)
-!286 = !DILocation(line: 22, column: 23, scope: !280)
-!287 = !DILocalVariable(name: "c", scope: !280, file: !2, line: 23, type: !18)
-!288 = !DILocation(line: 23, column: 5, scope: !280)
-!289 = !DILocation(line: 27, column: 5, scope: !280)
-!290 = !DILocation(line: 30, column: 5, scope: !280)
-!291 = !DILocation(line: 32, column: 8, scope: !292)
-!292 = distinct !DILexicalBlock(scope: !280, file: !2, line: 32, column: 8)
-!293 = !DILocation(line: 32, column: 10, scope: !292)
-!294 = !DILocation(line: 32, column: 9, scope: !292)
-!295 = !DILocation(line: 32, column: 12, scope: !292)
-!296 = !DILocation(line: 32, column: 13, scope: !292)
-!297 = !DILocation(line: 32, column: 11, scope: !292)
-!298 = !DILocation(line: 32, column: 8, scope: !280)
-!299 = !DILocation(line: 35, column: 22, scope: !300)
-!300 = distinct !DILexicalBlock(scope: !292, file: !2, line: 32, column: 16)
-!301 = !DILocation(line: 35, column: 9, scope: !300)
-!302 = !DILocation(line: 36, column: 22, scope: !300)
-!303 = !DILocation(line: 36, column: 9, scope: !300)
-!304 = !DILocation(line: 39, column: 5, scope: !300)
-!305 = !DILocation(line: 43, column: 19, scope: !306)
-!306 = distinct !DILexicalBlock(scope: !292, file: !2, line: 42, column: 9)
-!307 = !DILocation(line: 43, column: 6, scope: !306)
-!308 = !DILocation(line: 55, column: 5, scope: !280)
+!275 = !{null, !276}
+!276 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !277, size: 64)
+!277 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !18, size: 64)
+!278 = !DILocalVariable(name: "i", arg: 1, scope: !273, file: !2, line: 10, type: !276)
+!279 = !DILocation(line: 10, column: 17, scope: !273)
+!280 = !DILocalVariable(name: "a", scope: !273, file: !2, line: 12, type: !277)
+!281 = !DILocation(line: 12, column: 10, scope: !273)
+!282 = !DILocation(line: 13, column: 8, scope: !273)
+!283 = !DILocation(line: 13, column: 7, scope: !273)
+!284 = !DILocation(line: 13, column: 6, scope: !273)
+!285 = !DILocalVariable(name: "thread2", scope: !273, file: !2, line: 14, type: !286)
+!286 = !DIDerivedType(tag: DW_TAG_typedef, name: "pthread_t", file: !287, line: 27, baseType: !42)
+!287 = !DIFile(filename: "/usr/include/x86_64-linux-gnu/bits/pthreadtypes.h", directory: "", checksumkind: CSK_MD5, checksum: "2d764266ce95ab26d4a4767c2ec78176")
+!288 = !DILocation(line: 14, column: 23, scope: !273)
+!289 = !DILocation(line: 15, column: 55, scope: !273)
+!290 = !DILocation(line: 15, column: 54, scope: !273)
+!291 = !DILocation(line: 15, column: 6, scope: !273)
+!292 = !DILocation(line: 16, column: 5, scope: !273)
+!293 = distinct !DISubprogram(name: "fun", linkageName: "_Z3funPi", scope: !2, file: !2, line: 20, type: !294, scopeLine: 20, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !8, retainedNodes: !268)
+!294 = !DISubroutineType(types: !295)
+!295 = !{null, !277}
+!296 = !DILocalVariable(name: "i", arg: 1, scope: !293, file: !2, line: 20, type: !277)
+!297 = !DILocation(line: 20, column: 15, scope: !293)
+!298 = !DILocalVariable(name: "a", scope: !293, file: !2, line: 22, type: !277)
+!299 = !DILocation(line: 22, column: 10, scope: !293)
+!300 = !DILocation(line: 23, column: 7, scope: !293)
+!301 = !DILocation(line: 23, column: 6, scope: !293)
+!302 = !DILocation(line: 25, column: 5, scope: !293)
+!303 = distinct !DISubprogram(name: "fun2", linkageName: "_Z4fun2PPi", scope: !2, file: !2, line: 28, type: !274, scopeLine: 28, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !8, retainedNodes: !268)
+!304 = !DILocalVariable(name: "i", arg: 1, scope: !303, file: !2, line: 28, type: !276)
+!305 = !DILocation(line: 28, column: 17, scope: !303)
+!306 = !DILocalVariable(name: "a", scope: !303, file: !2, line: 30, type: !277)
+!307 = !DILocation(line: 30, column: 10, scope: !303)
+!308 = !DILocation(line: 31, column: 8, scope: !303)
+!309 = !DILocation(line: 31, column: 7, scope: !303)
+!310 = !DILocation(line: 31, column: 6, scope: !303)
+!311 = !DILocation(line: 33, column: 10, scope: !303)
+!312 = !DILocation(line: 33, column: 5, scope: !303)
+!313 = !DILocation(line: 34, column: 5, scope: !303)
+!314 = distinct !DISubprogram(name: "main", scope: !2, file: !2, line: 44, type: !129, scopeLine: 44, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !8, retainedNodes: !268)
+!315 = !DILocalVariable(name: "thread1", scope: !314, file: !2, line: 45, type: !286)
+!316 = !DILocation(line: 45, column: 15, scope: !314)
+!317 = !DILocalVariable(name: "thread2", scope: !314, file: !2, line: 45, type: !286)
+!318 = !DILocation(line: 45, column: 23, scope: !314)
+!319 = !DILocalVariable(name: "c", scope: !314, file: !2, line: 46, type: !18)
+!320 = !DILocation(line: 46, column: 5, scope: !314)
+!321 = !DILocalVariable(name: "a", scope: !314, file: !2, line: 48, type: !276)
+!322 = !DILocation(line: 48, column: 7, scope: !314)
+!323 = !DILocalVariable(name: "b", scope: !314, file: !2, line: 48, type: !277)
+!324 = !DILocation(line: 48, column: 10, scope: !314)
+!325 = !DILocation(line: 50, column: 2, scope: !314)
+!326 = !DILocation(line: 51, column: 2, scope: !314)
+!327 = !DILocation(line: 53, column: 4, scope: !314)
+!328 = !DILocation(line: 53, column: 3, scope: !314)
+!329 = !DILocation(line: 53, column: 6, scope: !314)
+!330 = !DILocalVariable(name: "d", scope: !314, file: !2, line: 57, type: !276)
+!331 = !DILocation(line: 57, column: 7, scope: !314)
+!332 = !DILocation(line: 59, column: 3, scope: !314)
+!333 = !DILocation(line: 59, column: 2, scope: !314)
+!334 = !DILocation(line: 60, column: 6, scope: !314)
+!335 = !DILocation(line: 60, column: 1, scope: !314)
+!336 = !DILocation(line: 63, column: 5, scope: !314)
+!337 = !DILocation(line: 66, column: 5, scope: !314)
+!338 = !DILocation(line: 68, column: 8, scope: !339)
+!339 = distinct !DILexicalBlock(scope: !314, file: !2, line: 68, column: 8)
+!340 = !DILocation(line: 68, column: 10, scope: !339)
+!341 = !DILocation(line: 68, column: 9, scope: !339)
+!342 = !DILocation(line: 68, column: 12, scope: !339)
+!343 = !DILocation(line: 68, column: 13, scope: !339)
+!344 = !DILocation(line: 68, column: 11, scope: !339)
+!345 = !DILocation(line: 68, column: 8, scope: !314)
+!346 = !DILocation(line: 71, column: 22, scope: !347)
+!347 = distinct !DILexicalBlock(scope: !339, file: !2, line: 68, column: 16)
+!348 = !DILocation(line: 71, column: 9, scope: !347)
+!349 = !DILocation(line: 72, column: 22, scope: !347)
+!350 = !DILocation(line: 72, column: 9, scope: !347)
+!351 = !DILocation(line: 75, column: 5, scope: !347)
+!352 = !DILocation(line: 79, column: 19, scope: !353)
+!353 = distinct !DILexicalBlock(scope: !339, file: !2, line: 78, column: 9)
+!354 = !DILocation(line: 79, column: 6, scope: !353)
+!355 = !DILocation(line: 91, column: 5, scope: !314)

@@ -29,23 +29,20 @@
 #include "llvm/Support/raw_ostream.h"
 #include "AliasAnalysis.h"
 #include "/home/cs23mtech12010/CCM/CCMutator/llvm-project/llvm/include/llvm/Transforms/Tools/EnumerateCallInst.h"
-
+#include"SidAliasAnalysis.h"
 using namespace llvm;
 
 namespace {
 struct scopePass : public PassInfoMixin<scopePass> {
   static char ID;
 
-
-
-
-
 std::list<llvm::DILocalScope*> ScpList;
-
 std::list<llvm::AllocaInst*> AlocList;
 
 std::list<llvm::AllocaInst*> IntraAliases(llvm::Value* V){
 std::list<llvm::AllocaInst*> Temp;
+
+ // the list of contexts at which a given function is called 
 
 // AggrAlias A;
 // for (auto x : AlocList){
@@ -54,52 +51,132 @@ std::list<llvm::AllocaInst*> Temp;
 //     Temp.push_back(x);
 //   }
 // }
-
 return Temp;
 }
 
 
+  PreservedAnalyses run(Module &M, ModuleAnalysisManager &MAM) {
 
+//  errs()<<"the module ----------------"<<M<<"\n";
 
-
-
-
-
-
-
-  PreservedAnalyses run(Function &F, FunctionAnalysisManager &FAM) {
-
-  auto &AA = FAM.getResult<AAManager>(F);
-  BatchAAResults BatchAA(AA);
-  AliasSetTracker AST(BatchAA);
 
     //  AggrAlias A;
+              for(Function &F : M){
 
-         for (BasicBlock &BB : F) {
-      for (llvm::Instruction &I : BB) {
-        if (isa<llvm::AllocaInst>(&I)) {
-          // llvm::errs() << I << " \n";
-          
-          AlocList.push_back(dyn_cast<llvm::AllocaInst>(&I));
-        }
-        AST.add(&I);
-      }
-    }
+              }
 
     EnumerateCallInst ECI;
-      ECI.AA=&AST;
-      AggrAlias SAA;
-      // ECI.SAA=&SAA;
       ECI.ThreadCreateName("pthread_create");
       ECI.ThreadJoinName("pthread_join");
-      ECI.visit(F);
-      ECI.printInstDebugInfo(1);
-      ECI.printInstDebugInfo(2);
+
+
+
+    llvm::Function *main_func = M.getFunction("main");
+    ECI.Threads(main_func, {});
+
+    for(auto x : ECI.Thread_Calls){
+
+      errs()<<"the thread calls are "<<*x.first<<"\n";
+      for(auto y : x.second){
+        errs()<<"the context is are "<<*y<<"\n";
+      }
+      errs()<<"t||||||||||||||||||||||||||||||||||| \n";
+    }
+
+
+      for(auto x : ECI.Join_Calls){
+      errs()<<"the thread Joins are "<<*x.first<<"\n";
+      for(auto y : x.second){
+        errs()<<"the context is are "<<*y<<"\n";
+      }
+      errs()<<"t||||||||||||||||||||||||||||||||||| \n";
+    }
+
+      ECI.M=&M;
+      // ECI.AA=&AST;
+      AggrAlias SAA;
+       llvm::Function *F = M.getFunction("main");
+
+       
+
+
+errs()<<"---------------**********************----------------- \n";
+alias_c A;
+A.M=&M;
+CallInst * call=nullptr;
+ for(auto x : ECI.Thread_Calls){
+
+for(Function &F : M){
+
+  if(F.getName().str() == "_Z4fun3PPi")
+{   
+      for(auto &BB : F){
+          for(auto &I : BB){
+            if(isa<CallInst>(&I))
+            {call = dyn_cast<llvm::CallInst>(&I);
+            errs()<<"fount the instruction that needede too be matched%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% \n";}
+          }
+    }
+
+
+
+}
+
+
+}
+
+      if(x.first == call)
+      {
+
+    auto context = x.second;
+    context.push_back(x.first);
+
+for (auto &F : M){
+      if(!(F.isDeclaration() || F.isIntrinsic() || F.isDeclarationForLinker()))
+    
+    {
+          if(F.getName().str() == "main")
+          {
+            
+            for(auto x : context){
+              errs()<<"the context is "<<*x<<"\n";
+            }
+                A.call_context=context; 
+                A.runOnFunction(F);
+                    errs()<<"the function name is "<<F.getName().str()<<"\n";
+                    errs()<<"***********************************\n";
+                    errs()<<"***********************************\n";
+                    errs()<<"***********************************\n";errs()<<"***********************************\n";
+                    errs()<<"***********************************\n";errs()<<"***********************************\n";
+                    errs()<<"***********************************\n";
+          }
+
+    }
+
+
+}
+
+break;
+      }
+      else{
+        errs()<<"the function is not found \n"<<"the function is "<<*x.first<<"\n";
+      }
+    
+    }
+// }
+
+
+      // ECI.SAA=&SAA;
+      // errs()<<"after main  \n";
+
+      // ECI.visit(F);
+      // ECI.printInstDebugInfo(1);
+      // ECI.printInstDebugInfo(2);
 
 
     errs() << "scopePass\n";
 
-
+// AggrAlias1 A1;
 
 
 
@@ -147,10 +224,10 @@ llvm::PassPluginLibraryInfo getHelloWorldPluginInfo() {
   return {LLVM_PLUGIN_API_VERSION, "scopePass", LLVM_VERSION_STRING,
           [](PassBuilder &PB) {
             PB.registerPipelineParsingCallback(
-                [](StringRef Name, FunctionPassManager &FPM,
+                [](StringRef Name, ModulePassManager &MPM,
                    ArrayRef<PassBuilder::PipelineElement>) {
                   if (Name == "scopePass") {
-                    FPM.addPass(scopePass());
+                    MPM.addPass(scopePass());
 
                     return true;
                   }
