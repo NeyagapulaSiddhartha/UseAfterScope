@@ -1,3 +1,4 @@
+#pragma once
 #include "llvm/Pass.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/Function.h"
@@ -21,6 +22,16 @@
 #include "llvm/IR/DebugLoc.h"
 
 using namespace llvm;
+
+class node{
+        public:
+        Value *I;
+	 std:: set<std::pair<Value*,Value *>>params={};
+        std::list<node*> succ={};
+        std::list<Value*>Join={};
+        std::list<node*>Thread={};
+ 		std::set<std::pair<Value*, Value*>> aaResult={};
+        };
 
 // struct alias_c : public FunctionPass {
 struct alias_c  {
@@ -50,10 +61,10 @@ std::vector<Value *> Pointee(BasicBlock * BB,Value *ROperand,std:: set<   std::p
  std:: set<std::pair<Value*,Value *>> minus( std:: set<std::pair<Value*,Value *>> gen , std:: set<std::pair<Value*,Value *>> kill);
 std:: set<std::pair<Value*,Value *>> uni( std:: set<std::pair<Value*,Value *>> a , std:: set<std::pair<Value*,Value *>> b);
 std::list<CallInst*>call_context;
-bool  processblock(BasicBlock *BB);
-std::set<std::pair<Value*, Value*>> kildal(Function &F);
+bool  processblock(BasicBlock *BB,node *root);
+std::set<std::pair<Value*, Value*>> kildal(Function &F,node *root);
 BasicBlock * getExitBlock(Function &F);
-bool runOnFunction(Function &F);
+std::set<std::pair<Value*, Value*>> runOnFunction(Function &F,node *root);
 Module *M;
   };
 

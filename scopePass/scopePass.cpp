@@ -29,8 +29,31 @@
 #include "llvm/Support/raw_ostream.h"
 #include "AliasAnalysis.h"
 #include "/home/cs23mtech12010/CCM/CCMutator/llvm-project/llvm/include/llvm/Transforms/Tools/EnumerateCallInst.h"
-#include"SidAliasAnalysis.h"
+#include"/home/cs23mtech12010/CCM/CCMutator/llvm-project/llvm/lib/Transforms/scopePass/SidAliasAnalysis.h"
 using namespace llvm;
+
+
+void print(node root){
+     for(auto x : root.succ){
+        // print(*x);
+    errs()<<"the succ is "<<*(x->I)<<"\n";
+  }
+       for(auto x : root.Thread){
+        // print(*x);
+    errs()<<"the succ is "<<*(x->I)<<"\n";
+  }
+       for(auto x : root.succ){
+        print(*x);
+    // errs()<<"the succ is "<<*(x->I)<<"\n";
+  }
+       for(auto x : root.Thread){
+        print(*x);
+    // errs()<<"the succ is "<<*(x->I)<<"\n";
+  }
+
+}
+
+
 
 namespace {
 struct scopePass : public PassInfoMixin<scopePass> {
@@ -60,10 +83,7 @@ return Temp;
 //  errs()<<"the module ----------------"<<M<<"\n";
 
 
-    //  AggrAlias A;
-              for(Function &F : M){
 
-              }
 
     EnumerateCallInst ECI;
       ECI.ThreadCreateName("pthread_create");
@@ -76,8 +96,8 @@ return Temp;
 
     for(auto x : ECI.Thread_Calls){
 
-      errs()<<"the thread calls are "<<*x.first<<"\n";
-      for(auto y : x.second){
+      errs()<<"the thread calls are "<<*x.second<<"\n";
+      for(auto y : x.first){
         errs()<<"the context is are "<<*y<<"\n";
       }
       errs()<<"t||||||||||||||||||||||||||||||||||| \n";
@@ -85,8 +105,8 @@ return Temp;
 
 
       for(auto x : ECI.Join_Calls){
-      errs()<<"the thread Joins are "<<*x.first<<"\n";
-      for(auto y : x.second){
+      errs()<<"the thread Joins are "<<*x.second<<"\n";
+      for(auto y : x.first){
         errs()<<"the context is are "<<*y<<"\n";
       }
       errs()<<"t||||||||||||||||||||||||||||||||||| \n";
@@ -94,42 +114,52 @@ return Temp;
 
       ECI.M=&M;
       // ECI.AA=&AST;
-      AggrAlias SAA;
+    
        llvm::Function *F = M.getFunction("main");
 
-       
+
+
 
 
 errs()<<"---------------**********************----------------- \n";
 alias_c A;
 A.M=&M;
 CallInst * call=nullptr;
+
+
+ node root;
+  root.I = M.getFunction("main");
+  root.succ={};
+  ECI.Init_Insencitive();
+
+  ECI.CreateCallGraph(M.getFunction("main"), &root);
+
+std::map<Function *,int> visited;
+
+for(Function &F:M){
+  visited[&F]=0;
+}
+ECI.Create_ContextInsensitve(visited);
+
+ECI.BFS(&root);
+
+ auto x=  A.runOnFunction(*M.getFunction("main"),&root);  //running analysis on the main function 
+  root.aaResult=x;
+  auto final_list =x;
+
+  for (const auto& i : final_list) {
+
+      errs()<<*i.first<<"the pair     "<<*i.second<<" \n";
+    }
+  print(root); 
+
  for(auto x : ECI.Thread_Calls){
 
-for(Function &F : M){
-
-  if(F.getName().str() == "_Z4fun3PPi")
-{   
-      for(auto &BB : F){
-          for(auto &I : BB){
-            if(isa<CallInst>(&I))
-            {call = dyn_cast<llvm::CallInst>(&I);
-            errs()<<"fount the instruction that needede too be matched%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% \n";}
-          }
-    }
-
-
-
-}
-
-
-}
-
-      if(x.first == call)
+      if(x.second == call)
       {
 
-    auto context = x.second;
-    context.push_back(x.first);
+    auto context = x.first;
+    context.push_back(x.second);
 
 for (auto &F : M){
       if(!(F.isDeclaration() || F.isIntrinsic() || F.isDeclarationForLinker()))
@@ -142,7 +172,8 @@ for (auto &F : M){
               errs()<<"the context is "<<*x<<"\n";
             }
                 A.call_context=context; 
-                A.runOnFunction(F);
+                 
+
                     errs()<<"the function name is "<<F.getName().str()<<"\n";
                     errs()<<"***********************************\n";
                     errs()<<"***********************************\n";
@@ -159,7 +190,7 @@ for (auto &F : M){
 break;
       }
       else{
-        errs()<<"the function is not found \n"<<"the function is "<<*x.first<<"\n";
+        // errs()<<"the function is not found \n"<<"the function is "<<*x.second<<"\n";
       }
     
     }
@@ -167,39 +198,15 @@ break;
 
 
       // ECI.SAA=&SAA;
-      // errs()<<"after main  \n";
+      errs()<<"after main  \n";
 
-      // ECI.visit(F);
-      // ECI.printInstDebugInfo(1);
-      // ECI.printInstDebugInfo(2);
+      ECI.visit(F);
+      ECI.printInstDebugInfo(1);
+      ECI.printInstDebugInfo(2);
 
 
     errs() << "scopePass\n";
 
-// AggrAlias1 A1;
-
-
-
-    
-  //   for (const AliasSet &AS : AST) {
-  //   if (AS.isMayAlias())
-  //     {   
-  //       errs()<<"the alias sets  \n";
-  //             for (const auto &A : AS) {
-  //               Value *Ptr = A.getValue();
-  //               // Alias tracker should have pointers of same data type.
-  //               errs()<<*Ptr <<"the aliases ----\n";
-  //             }
-  //     }
-  //     if(AS.isMustAlias()){
-  //               errs()<<"the alias sets must  \n";
-  //             for (const auto &A : AS) {
-  //               Value *Ptr = A.getValue();
-  //               // Alias tracker should have pointers of same data type.
-  //               errs()<<*Ptr <<"the aliases ----\n";
-  //             }
-  //     }
-  // }
 
 
   
@@ -211,11 +218,7 @@ break;
   }
 
   static bool isRequired() { return true; }
-  //    void getAnalysisUsage(AnalysisUsage &AU) const override {
-  //     AU.addRequired<MemorySSAWrapperPass>();
-  //     AU.addPreserved<MemorySSAWrapperPass>();
 
-  //   }
 
 }; // struct scopePass
 } // namespace

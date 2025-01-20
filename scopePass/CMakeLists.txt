@@ -14,5 +14,6 @@ ${LLVM_MAIN_INCLUDE_DIR}/llvm/Transforms/Tools/RemoveInst.cpp
 ADDITIONAL_HEADER_DIRS
 AliasAnalysis.h
 ${LLVM_MAIN_INCLUDE_DIR}/llvm/Transforms/Tools/EnumerateCallInst.h
+${LLVM_MAIN_INCLUDE_DIR}/../lib/Transforms/scopePass/SidAliasAnalysis.h
 )
 

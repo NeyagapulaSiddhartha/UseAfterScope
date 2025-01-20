@@ -5,6 +5,8 @@
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/CFG.h"
+#include "llvm/Support/Casting.h"
+#include "llvm/Support/InstructionCost.h"
 #include "llvm/Support/raw_ostream.h"
 #include <map>
 #include "llvm/IR/DebugInfoMetadata.h" // Add this include for DbgDeclareInst
@@ -28,40 +30,85 @@ using namespace llvm;
 
 // struct alias_c : public FunctionPass {
 
-   std::string alias_c::get_ret(Value* I) {
-       std::string s;
-       raw_string_ostream os(s);
-       I->print(os);
-       os.flush();
-       std::string instructionSubstr = os.str();
-       size_t equalPos = instructionSubstr.find('=');
-       if (equalPos != std::string::npos) {
-           std::string substr = instructionSubstr.substr(0, equalPos);
-           return substr;
-       } else {
-           return "";
-       }
+  //  std::string alias_c::get_ret(Value* I) {
+  //      std::string s;
+  //      raw_string_ostream os(s);
+  //      I->print(os);
+  //      os.flush();
+  //      std::string instructionSubstr = os.str();
+  //      size_t equalPos = instructionSubstr.find('=');
+  //      if (equalPos != std::string::npos) {
+  //          std::string substr = instructionSubstr.substr(0, equalPos);
+  //          return substr;
+  //      } else {
+  //          return "";
+  //      }
+  //  }
+
+
+   std::string alias_c::get_ret(Value* II) {
+//  errs()<<*M;
+ if(isa<Argument>(II)){
+
+ }
+ else{
+    auto  x = dyn_cast<Instruction>(II);
+    auto F = x->getFunction();
+    // errs()<<" got the function -------------------------"<<*F;
+    // errs()<< " got the Instruction ((((((((((((((((((()))))))))))))))))))"<<*x<<"\n";
+     for(auto &BB : *F)
+        {
+          for(auto &I : BB)
+          {
+            if(isa<llvm::DbgDeclareInst>(&I))
+            {
+              // errs()<<"the instruction is "<<I<<"\n";
+              // errs()<<"the value is "<<*I.getOperand(0)<<"\n";
+              if(dyn_cast<DbgDeclareInst>(&I)->getAddress()==II)
+              {
+                  auto strrr=dyn_cast<DbgDeclareInst>(&I)->getVariable()->getName().str();
+                //   errs()<<"this is working "<<dyn_cast<DbgDeclareInst>(&I)->getVariable()->getName().str()<<"   \n";
+                //  errs()<<" the string  \n";
+                return strrr;
+                }
+  //           }
+  //           else{
+  //             errs()<<"the instruction is "<<I<<"\n";
+            }
+          }
+        }
+
+
+ }
+// //  auto f = II->getB
+    return "arg";
+   
+;      // for(Function &F : *M)
+      // {
+      //   for(auto &BB : F)
+      //   {
+      //     for(auto &I : BB)
+      //     {
+      //       // if(isa<llvm::DbgDeclareInst>(&I))
+      //       // {
+      //       //   // errs()<<"the instruction is "<<I<<"\n";
+      //       //   // errs()<<"the value is "<<*I.getOperand(0)<<"\n";
+      //       //   // if(dyn_cast<DbgDeclareInst>(&I)->getAddress()==II)
+      //       //   // {
+      //       //   //     // auto strrr=dyn_cast<DbgDeclareInst>(&I)->getVariable()->getName().str();
+      //       //   //   //   errs()<<"this is working "<<dyn_cast<DbgDeclareInst>(&I)->getVariable()<<"   \n";
+      //       //   //   //  errs()<<" the string  \n";
+      //       //     return "sid";
+      //       //     // }
+      //       // }
+      //       // else{
+      //         errs()<<"the instruction is "<<I<<"\n";
+      //       // }
+      //     }
+      //   }
+      // }
    }
 
-
-  //  std::string alias_c::get_ret(Value* I) {
-  //     for(Function &F : *M)
-  //     {
-  //       for(auto &BB : F)
-  //       {
-  //         for(auto &I : BB)
-  //         {
-  //           if(isa<llvm::DbgDeclareInst>(&I))
-  //           {
-  //             // errs()<<"the instruction is "<<I<<"\n";
-  //             // errs()<<"the value is "<<*I.getOperand(0)<<"\n";
-  //             if(dyn_cast<DbgDeclareInst>(&I)->getAddress()==&I)
-  //              return dyn_cast<DbgDeclareInst>(&I)->getVariable()->getName().str()<<"\n";
-  //           }
-  //         }
-  //       }
-  //     }
-  //  }
 bool alias_c:: is_variable(Value * I)
 {
   if(dyn_cast<AllocaInst>(I))
@@ -252,60 +299,60 @@ std::vector<Value *>  alias_c::Gen (BasicBlock *BB,Value *ROperand,   std:: set<
 
 std::vector<Value *> alias_c::Pointee(BasicBlock * BB,Value *ROperand,std:: set<   std::pair<Value*,Value *>   > gmap)
 {
-    
-    int x=0;
-    Value * init_operand =ROperand;
-  while(!  (isa<llvm::AllocaInst>(ROperand) ||  isa<llvm::Argument>(ROperand)))  //// getting the depth of alloca inst 
-  {
+        int x=0;
+        Value * init_operand =ROperand;
+      while(!  (isa<llvm::AllocaInst>(ROperand) ||  isa<llvm::Argument>(ROperand)))  //// getting the depth of alloca inst 
+      {
 
-    ROperand= dyn_cast<Instruction>(ROperand)->getOperand(0);
-    //errs()<<" the back tracking of loads --------"<<*ROperand<<"\n";
+        ROperand= dyn_cast<Instruction>(ROperand)->getOperand(0);
+        //errs()<<" the back tracking of loads --------"<<*ROperand<<"\n";
+            
+        x++;
+      }
+      if(init_operand !=ROperand && dyn_cast<GetElementPtrInst>(init_operand) )
+      {
+        x=0;
+      }
+      if(isa<llvm::Argument>(init_operand))
+      {
+        x=1;
+      }
+
+      std::vector<Value *> v1;
+      v1.push_back(ROperand);  
+    while(x)                         ///  iterate through B_map and find tha actual variables defined 
+      { 
+        std::vector<Value *> v2;
+        --x;
+
+
+        while(!v1.empty())
         
-    x++;
-  }
-  if(init_operand !=ROperand && dyn_cast<GetElementPtrInst>(init_operand) )
-  {
-    x=0;
-  }
-  if(isa<llvm::Argument>(init_operand))
-  {
-    x=1;
-  }
+        {
+          Value * temp2 = v1.back();
+          v1.pop_back();
 
-  std::vector<Value *> v1;
-   v1.push_back(ROperand);  
-while(x)                         ///  iterate through B_map and find tha actual variables defined 
-  { 
-     std::vector<Value *> v2;
-    --x;
+        for (const auto& i : gmap) 
+        {
+
+          if (i.first == temp2) {
+        //               // Store matching entry in the new map
+                      v2.push_back(i.second);
+        //           }
+
+          }
+
+        }
 
 
-    while(!v1.empty())
-    
-    {
-      Value * temp2 = v1.back();
-      v1.pop_back();
-
-     for (const auto& i : gmap) 
-     {
-
-       if (i.first == temp2) {
-    //               // Store matching entry in the new map
-                  v2.push_back(i.second);
-    //           }
-
-       }
-
-     }
-
+        }
+        
+        v1=v2;
+      
+      }
+      return v1;
 
     }
-    
-    v1=v2;
-  
-  }
-  return v1;
-}
 
 
  std:: set<std::pair<Value*,Value *>> alias_c::minus( std:: set<std::pair<Value*,Value *>> gen , std:: set<std::pair<Value*,Value *>> kill)
@@ -324,15 +371,17 @@ std:: set<std::pair<Value*,Value *>>  alias_c::uni( std:: set<std::pair<Value*,V
  }
 
 
-bool alias_c:: processblock(BasicBlock *BB)
+bool alias_c:: processblock(BasicBlock *BB, node * root)
 {
    int i=0;
  //errs()<<"-------------------processing new block------------------\n";
 
  int change =0;
   // std:: map<BasicBlock* , std:: set<std::make_pair<Value* ,Value*>>>B_map;
-  std:: set<   std::pair<Value*,Value *> >iin ;  ///////////////////calculate in set
+  std:: set< std::pair<Value*,Value *> >iin ;  ///////////////////calculate in set
     std:: set<std::pair<Value*,Value *>> gmap ;
+
+
     for(BasicBlock* pred : predecessors(BB))
     {
       iin = uni(iin,B_map[pred]);
@@ -340,141 +389,147 @@ bool alias_c:: processblock(BasicBlock *BB)
 
 
   gmap=iin; 
+
     if(BB==&BB->getParent()->getEntryBlock())
     {
-      gmap=uni(gmap,params[BB->getParent()]);
-
-
+      gmap=uni(gmap,root->params);
 
     }
-    for(auto cc : params[BB->getParent()])
-    {
-      errs()<<"the params are \n";
-      errs()<<*cc.first<<"  "<<*cc.second<<"\n";
-    }
+
+
+
+    // for(auto cc : params[BB->getParent()])
+    // {
+    //   errs()<<"the params are \n";
+    //   errs()<<*cc.first<<"  "<<*cc.second<<"\n";
+    // }
 
   for (Value &I : *BB)
   {
 
-    if(CallInst *ci = dyn_cast<CallInst>(&I))
-    {
-        CallInst* x = nullptr; // Initialize the pointer
-if (!(call_context.empty())) { // Check if the vector is not empty
-    x = call_context.front(); // Access the first element
-   
-}
-// for(auto ci : call_context)
-// {
-//   errs()<<"the call context is \t"<<*ci<<"\n";
-// }
-      if(ci==x)
-      {
-         call_context.pop_front(); // Remove the last element
-                auto f= ci->getCalledFunction();
-            
-              
-              if(!(f->isDeclaration() || f->isIntrinsic() || f->isDeclarationForLinker()))
-              {
-                errs()<<"the call instruction is %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% \t"<<f->getName().str()<<"\n";
-                  std::set<std::pair<Value*, Value*>> temp;
-                  i=0;
-                  for (auto &arg : f->args())
+        if(CallInst *ci = dyn_cast<CallInst>(&I))
+        {
+                    auto f= ci->getCalledFunction();
+                
+                  
+                  if(!(f->isDeclaration() || f->isIntrinsic() || f->isDeclarationForLinker()))
                   {
-                        errs()<< "the arg is \t"<<arg<<"\t"<<"the operand is \t"<<*ci->getArgOperand(i)<<"\n";
-                      
-                std::vector<Value*> tgen = Gen(BB,ci->getOperand(i),gmap);
-                  for(auto s : tgen)
-                      {
+                      // errs()<<"the call instruction is %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% \t"<<f->getName().str()<<"\n";
+                        std::set<std::pair<Value*, Value*>> temp;
+                        i=0;
+                        for (auto &arg : f->args())
+                        {
+                              // errs()<< "the arg is \t"<<arg<<"\t"<<"the operand is \t"<<*ci->getArgOperand(i)<<"\n";
+                            
+                            std::vector<Value*> tgen = Gen(BB,ci->getOperand(i),gmap);
+                            for(auto s : tgen)
+                                {
+                                    temp.insert(std::make_pair(&arg,s));
+                                  
+                                }
+                                i++;
+                          }
+                            node * temproot;
+                        for(auto x : root->succ){
 
-                          temp.insert(std::make_pair(&arg,s));
+                          if(x->I==ci || x->I == f){
+                            temproot=x;
+                          }
                         
-                      }
-                      i++;
-                    }
-                      params[f ]=uni(gmap,temp);
-                runOnFunction(*f);
-            
-              }
-              else if(f->getName().str()=="pthread_create")
-              {
-                errs()<<"the pthread create is called \n";
-                std::set<std::pair<Value*, Value*>> temp;
-                i=0;
-               llvm::Function *f=dyn_cast<Function>(ci->getArgOperand(2));
-               errs()<<"the function called by pthreads siiss  is \t"<<f->getName().str()<<"\n";
-                for (auto &arg : f->args())
-                {
-                    if(i<3)
-                    continue;
+                        }
+                          temproot->params=uni (temproot->params,uni(gmap,temp));
+                        // runOnFunction(*f);
+                  }
 
-                      errs()<< "the arg is \t"<<arg<<"\t"<<"the operand is \t"<<*ci->getArgOperand(3+i)<<"\n";
+                  else if(f->getName().str()=="pthread_create")
+                  {
+                      errs()<<"the pthread create is called \n";
+                      std::set<std::pair<Value*, Value*>> temp;
+                      i=0;
+                    llvm::Function *f=dyn_cast<Function>(ci->getArgOperand(2));
+                    // errs()<<"the function called by pthreads siiss  is \t"<<f->getName().str()<<"\n";
+                    for (auto &arg : f->args())
+                    {
+                        if(i<3)
+                        continue;
 
-                       std::vector<Value*> tgen = Gen(BB,ci->getOperand(3+i),gmap);
-                  for(auto s : tgen)
-                      {
+                          // errs()<< "the arg is \t"<<arg<<"\t"<<"the operand is \t"<<*ci->getArgOperand(3+i)<<"\n";
 
-                          temp.insert(std::make_pair(&arg,s));
+                          std::vector<Value*> tgen = Gen(BB,ci->getOperand(3+i),gmap); // handling only one parameter  , for multiple parameteres iterate through them and find all pts pairs 
+                      for(auto s : tgen)
+                          {
+
+                              temp.insert(std::make_pair(&arg,s));
+                            
+                          }
+                          i++;
+                        }
+                          node * temproot;
+                        for(auto x : root->Thread){
+
+                          if(x->I==ci || x->I == f){
+                            temproot=x;
+                          }
                         
-                      }
-                      i++;
+                        }
+                          temproot->params=uni (temproot->params,uni(gmap,temp));
+                          // params[f ]=uni(gmap,temp);
+                        // runOnFunction(*f);
                     }
-                      params[f ]=uni(gmap,temp);
-                runOnFunction(*f);
+                
+                else{
+                  // call_context.p(x);
                 }
-            }
-            else{
-              // call_context.p(x);
-            }
-      }
-    
-if(StoreInst *si = dyn_cast<StoreInst>(&I))
-{
+          }
+        
+    if(StoreInst *si = dyn_cast<StoreInst>(&I))
+    {
 
-      Value* OP1 =si->getOperand(0);
-      Value* OP2 = si->getOperand(1);
+          Value* OP1 =si->getOperand(0);
+          Value* OP2 = si->getOperand(1);
 
-    if(isa<ConstantPointerNull>(si->getOperand(0)))
-    //errs()<<"this is the constant pointer null---------------------------- \t"<< *si->getOperand(0)<<"\n";
-   {
-      errs()<<"the store instruction in ConstantPointerNull is  "<<*si<<"\n"; 
-      
-        std :: vector< Value *> pointee ;
-          std:: vector < Value *> gen = Gen(BB,OP2,gmap);
+        if(isa<ConstantPointerNull>(si->getOperand(0)))
+        //errs()<<"this is the constant pointer null---------------------------- \t"<< *si->getOperand(0)<<"\n";
+        {
+            errs()<<"the store instruction in ConstantPointerNull is  "<<*si<<"\n"; 
+            
+              std :: vector< Value *> pointee ;
+                std:: vector < Value *> gen = Gen(BB,OP2,gmap);
 
-          std:: set<std::pair<Value*,Value *>> kill = mustkill(BB,gen,gmap);
+                std:: set<std::pair<Value*,Value *>> kill = mustkill(BB,gen,gmap);
 
+                
+                gmap =minus(gmap , kill);                   /////////// performing transfer function
+                gmap = uni( gmap, cross(gen, pointee,1));
+          }
           
-          gmap =minus(gmap , kill);                   /////////// performing transfer function
-          gmap = uni( gmap, cross(gen, pointee,1));
+        else if(si && (si->getOperand(0)->getType()->getTypeID()==15 || si->getOperand(0)->getType()->getTypeID()==17 )&& (si->getOperand(1)->getType()->getTypeID()==15 || si->getOperand(1)->getType()->getTypeID()==17 ))
+        {  
+
+          // errs()<<"the store instruction in else is  "<<*si<<"\n"; 
+          i++;
+        
+
+
+
+
+            std:: vector < Value *> gen = Gen(BB,OP2,gmap); /////////////////// creating gen set 
+
+    
+            std :: vector< Value *> pointee = Pointee(BB,OP1,gmap);  ///////////////creating pointee set 
+
+
+
+
+            std:: set<std::pair<Value*,Value *>> kill = mustkill(BB,gen,gmap);   // creating kill set 
+
+
+              gmap =minus(gmap , kill);                   /////////// performing transfer function
+              gmap = uni( gmap, cross(gen, pointee));
+
       }
       
-     else if(si && (si->getOperand(0)->getType()->getTypeID()==15 || si->getOperand(0)->getType()->getTypeID()==17 )&& (si->getOperand(1)->getType()->getTypeID()==15 || si->getOperand(1)->getType()->getTypeID()==17 ))
-    {  
-
-      errs()<<"the store instruction in else is  "<<*si<<"\n"; 
-      i++;
-    
-
-
-
-
-        std:: vector < Value *> gen = Gen(BB,OP2,gmap); /////////////////// creating gen set 
-
- 
-        std :: vector< Value *> pointee = Pointee(BB,OP1,gmap);  ///////////////creating pointee set 
-
-
-
-
-        std:: set<std::pair<Value*,Value *>> kill = mustkill(BB,gen,gmap);   // creating kill set 
-
-
-          gmap =minus(gmap , kill);                   /////////// performing transfer function
-          gmap = uni( gmap, cross(gen, pointee));
-
-  }
-  
-  }
+      }
     }
 
 
@@ -496,7 +551,7 @@ return change ;
 }
 
 
-std::set<std::pair<Value*, Value*>> alias_c::kildal(Function &F)
+std::set<std::pair<Value*, Value*>> alias_c::kildal(Function &F,node *root)
 {
 
 
@@ -511,7 +566,7 @@ std::set<std::pair<Value*, Value*>> alias_c::kildal(Function &F)
        {
            BasicBlock* curr_node = worklist.front();
        
-           int change = processblock(curr_node);
+           int change = processblock(curr_node,root);
            worklist.pop();
            final_result = B_map[curr_node];
             if (change) {
@@ -542,19 +597,29 @@ BasicBlock * alias_c::getExitBlock(Function &F)
   }
 }
 
-  bool alias_c::runOnFunction(Function &F)  {
+  std::set<std::pair<Value*, Value*>> alias_c::runOnFunction(Function &F, node * root)  {
 
     if(F.isDeclaration() || F.isIntrinsic() || F.isDeclarationForLinker())
     {
-      return false;
+      return {};
     }
     // write your code here
-    std::set<std::pair<Value*, Value*>> final_list =kildal(F);
+    std::set<std::pair<Value*, Value*>> final_list =kildal(F,root);
     BasicBlock* FB = getExitBlock(F);
   if(FB)
   {
     final_list=B_map[FB];
   }
+  errs()<<"-------------------*****printing aliases in func **************-------------------\t"<<F.getName().str()<<"\n";
+
+  //  for (const auto& i : final_list) {
+
+
+  //   errs()<<*i.first<<*i.second<<" the key value pairs aree -------------------------- \n";
+
+  //   errs()<<get_ret(i.first);
+  //  }
+
  //printKeysWithSameValue(final_list);
 
    errs()<<"-------------------*****printing aliases in func **************-------------------\t"<<F.getName().str()<<"\n";
@@ -581,19 +646,12 @@ for (const auto& i : final_list) {
          
         }
      }
-
   }
   errs()<<" }\n";
-  
   }
-
-
   }
-
 errs()<<"-------------------*****fun aliasyes completed **************-------------------\n";
-
-
-        return false;
+        return final_list;
       }
       
 

@@ -2,12 +2,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-
-
 void fun(int *i){
     return ;
 }
-
 
 // Function for Thread 2
 void* threadFunction2(void* arg) {
