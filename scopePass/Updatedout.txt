@@ -1,0 +1,71 @@
+Running Alias Analysis for Function: main
+Alias Analysis Completed for Function: main
+the sets are **************************************** 
+++++++ the points to set at  instr  ++++++++   %1 = alloca i32, align 4
+the points to set of     %1 = alloca i32, align 4
+  %1 = alloca i32, align 4
+-------------------
+++++++ the points to set at  instr  ++++++++   %2 = alloca i64, align 8
+the points to set of     %2 = alloca i64, align 8
+  %2 = alloca i64, align 8
+-------------------
+++++++ the points to set at  instr  ++++++++   %3 = alloca i64, align 8
+the points to set of     %3 = alloca i64, align 8
+  %3 = alloca i64, align 8
+-------------------
+++++++ the points to set at  instr  ++++++++   %4 = alloca i32, align 4
+the points to set of     %4 = alloca i32, align 4
+  %4 = alloca i32, align 4
+-------------------
+++++++ the points to set at  instr  ++++++++   store i32 0, ptr %1, align 4
+the points to set of     %1 = alloca i32, align 4
+i32 0
+-------------------
+++++++ the points to set at  instr  ++++++++   call void @llvm.dbg.declare(metadata ptr %2, metadata !281, metadata !DIExpression()), !dbg !284
+++++++ the points to set at  instr  ++++++++   call void @llvm.dbg.declare(metadata ptr %3, metadata !285, metadata !DIExpression()), !dbg !286
+++++++ the points to set at  instr  ++++++++   call void @llvm.dbg.declare(metadata ptr %4, metadata !287, metadata !DIExpression()), !dbg !288
+++++++ the points to set at  instr  ++++++++   store i32 9, ptr %4, align 4, !dbg !274
+the points to set of     %4 = alloca i32, align 4
+i32 9
+-------------------
+++++++ the points to set at  instr  ++++++++   %5 = call i32 @pthread_create(ptr noundef %2, ptr noundef null, ptr noundef @_Z15threadFunction2Pv, ptr noundef null) #6, !dbg !275
+the points to set of     %4 = alloca i32, align 4
+i32 9
+-------------------
+++++++ the points to set at  instr  ++++++++   %6 = call i32 @pthread_create(ptr noundef %3, ptr noundef null, ptr noundef @_Z15threadFunction2Pv, ptr noundef %4) #6, !dbg !276
+the points to set of     %4 = alloca i32, align 4
+i32 9
+-------------------
+++++++ the points to set at  instr  ++++++++   %7 = load i32, ptr %4, align 4, !dbg !277
+the points to set of     %7 = load i32, ptr %4, align 4, !dbg !277
+i32 9
+-------------------
+++++++ the points to set at  instr  ++++++++   %8 = load i32, ptr %4, align 4, !dbg !279
+the points to set of     %8 = load i32, ptr %4, align 4, !dbg !279
+-------------------
+++++++ the points to set at  instr  ++++++++   %9 = mul nsw i32 %7, %8, !dbg !280
+++++++ the points to set at  instr  ++++++++   %10 = load i32, ptr %4, align 4, !dbg !281
+the points to set of     %10 = load i32, ptr %4, align 4, !dbg !281
+-------------------
+++++++ the points to set at  instr  ++++++++   %11 = sub nsw i32 %10, 1, !dbg !282
+++++++ the points to set at  instr  ++++++++   %12 = icmp sgt i32 %9, %11, !dbg !283
+++++++ the points to set at  instr  ++++++++   br i1 %12, label %13, label %18, !dbg !284
+++++++ the points to set at  instr  ++++++++   %14 = load i64, ptr %2, align 8, !dbg !285
+the points to set of     %14 = load i64, ptr %2, align 8, !dbg !285
+-------------------
+++++++ the points to set at  instr  ++++++++   %15 = call i32 @pthread_join(i64 noundef %14, ptr noundef null), !dbg !287
+++++++ the points to set at  instr  ++++++++   %16 = load i64, ptr %3, align 8, !dbg !288
+the points to set of     %16 = load i64, ptr %3, align 8, !dbg !288
+-------------------
+++++++ the points to set at  instr  ++++++++   %17 = call i32 @pthread_join(i64 noundef %16, ptr noundef null), !dbg !289
+++++++ the points to set at  instr  ++++++++   br label %21, !dbg !290
+++++++ the points to set at  instr  ++++++++   %19 = load i64, ptr %2, align 8, !dbg !291
+the points to set of     %19 = load i64, ptr %2, align 8, !dbg !291
+-------------------
+++++++ the points to set at  instr  ++++++++   %20 = call i32 @pthread_join(i64 noundef %19, ptr noundef null), !dbg !293
+++++++ the points to set at  instr  ++++++++   br label %21
+++++++ the points to set at  instr  ++++++++   ret i32 0, !dbg !294
+the points to set of     %2 = alloca i64, align 8
+-------------------
+the points to set of     %14 = load i64, ptr %2, align 8, !dbg !285
+-------------------
