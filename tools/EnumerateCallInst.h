@@ -30,12 +30,18 @@
 #include <vector>
 #include <string>
 #include <map>
-#include"/home/cs23mtech12010/CCM/CCMutator/llvm-project/llvm/lib/Transforms/scopePass/AliasAnalysis.h"
+#include"/home/cs23mtech12010/CCM/CCMutator/llvm-project/llvm/lib/Transforms/scopePass/SidAliasAnalysis.h"
 
 using namespace llvm;
 
+
+
+
 class EnumerateCallInst : public InstVisitor<EnumerateCallInst> {
     public:
+	
+
+
         EnumerateCallInst();
 		void printInstDebugInfo(int x);
 
@@ -43,13 +49,19 @@ class EnumerateCallInst : public InstVisitor<EnumerateCallInst> {
 	std::vector<CallInst *> callInsts;
 	std::vector<CallInst *> TC_callInsts;
 	std::vector<CallInst *> TJ_callInsts;
+	std::map<llvm::Function * , node*>Insencitive;
 	AliasSetTracker *AA;
+	alias_c A;
+std::map<std::list<llvm::CallInst*>, llvm::CallInst*> Thread_Calls;
+std::map<std::list<llvm::CallInst*>,llvm::CallInst* > Join_Calls;
 
-	AggrAlias *SAA;
+	// AggrAlias *SAA;
+
+	Module *M;
 	// std::map<CallInst* , Instruction*> CallInstparm;
         /// Data structure to hold pointers to invoke instruction
         std::vector<InvokeInst *> invokeInsts;
-
+	void Init_Insencitive();
 		std::list<std::pair<CallInst*, CallInst*>> pairs;
 		void makepairs(std::vector<CallInst *> TC_callInsts, std::vector<CallInst *> TJ_callInsts);
 		// AggrAlias SAA;
@@ -57,17 +69,24 @@ class EnumerateCallInst : public InstVisitor<EnumerateCallInst> {
 	/// Data structure to hold input list of functions names to enumerate
 	/// The initial size can be adjusted as an optimization
 	// SmallSet<std::string, 32> funcNames;
-						SmallSet<std::string, 32>ThreadJoin;
-							SmallSet<std::string, 32>ThreadCreate;
+	SmallSet<std::string, 32>ThreadJoin;
+	SmallSet<std::string, 32>ThreadCreate;
+	
+	void Threads(Function *F, std::list<llvm::CallInst*> context);
 	/// Adds a function name to funcNames to be searched for when visit()
 	/// is called.
 	/// \param funcName Function name for visitor to search for.
+
+
 	void ThreadJoinName(std::string funcName);
 	void ThreadCreateName(std::string funcName);
-
+	void Create_ContextInsensitve(std::map<Function *,int> visited);
+	void BFS(node * start) ;
+	void RunAlias(node * root) ;
+		
 	/// Overridden visitor function for call and invoke instructions
 	void visitCallInst(CallInst &I);
-        void visitInvokeInst(InvokeInst &I);
+    void visitInvokeInst(InvokeInst &I);
 
         /// Returns a pointer to the instruction at the given index. This
         /// considers callInsts and invokeInsts as one array that starts at
@@ -128,7 +147,7 @@ class EnumerateCallInst : public InstVisitor<EnumerateCallInst> {
         /// has already been deleted. Returns 0 if the index is in CallInsts or
         /// 1 if the index is in InvokeInsts
 	int isValidIndex(unsigned index);
-
+ void CreateCallGraph(Function *F,node *root,int Thread_depth=0, int Call_depth=0);
 	/// Adds the index to deletedIndices.
 	/// \param index to add to deletedIndices
 	/// \return Returns 0 if the index was added, -1 if the index is out of
@@ -143,7 +162,6 @@ class EnumerateCallInst : public InstVisitor<EnumerateCallInst> {
         /// Returns true if we are searching for Cpp functions.
         bool getIsCpp();
 
-    private:
 	/// Set of indecies that have been removed from their parent. This
 	/// becomes invalid if callInsts has one or more of its values removed.
 	/// This is used to ensure that the same instruction is not removed

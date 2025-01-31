@@ -7,427 +7,454 @@
  *
  * See EnumerateCallInst.h for more information
  */
+#include "EnumerateCallInst.h"
+#include "ItaniumDemangle.h"
+#include "RemoveInst.h"
+#include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/AliasSetTracker.h"
 #include "llvm/Analysis/MemoryLocation.h"
-#include "EnumerateCallInst.h"
-#include "RemoveInst.h"
-#include "ItaniumDemangle.h"
-#include "llvm/Analysis/AliasAnalysis.h"
-#include "llvm/IR/Instructions.h"
-#include "llvm/Support/raw_ostream.h"
 #include "llvm/IR/DebugInfo.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/Support/Casting.h"
+#include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
+#include <queue>
 
 #define MUT_DEBUG
 
 // Enable even more debugging output
-//#define MUT_DEBUG_VERB
+// #define MUT_DEBUG_VERB
 
-EnumerateCallInst::EnumerateCallInst() {
-    isCpp = false;
-}
+EnumerateCallInst::EnumerateCallInst() { isCpp = false; }
 
 void EnumerateCallInst::ThreadJoinName(std::string funcName) {
-    ThreadJoin.insert(funcName);
+  ThreadJoin.insert(funcName);
 }
 
 void EnumerateCallInst::ThreadCreateName(std::string funcName) {
-    ThreadCreate.insert(funcName);
+  ThreadCreate.insert(funcName);
 }
 
-void EnumerateCallInst::visitCallInst(CallInst &I) 
-{
-    // Check if the function being called is in the search set
-    Function *call;
-    call = I.getCalledFunction();
-    int ret;
+void EnumerateCallInst::visitCallInst(CallInst &I) {
+  // Check if the function being called is in the search set
+  Function *call;
+  call = I.getCalledFunction();
+  int ret;
 
-    ret = checkIfMatch(call);
-    if (ret==1 ) {
-        TC_callInsts.push_back(&I); }
+  ret = checkIfMatch(call);
+  if (ret == 1) {
+    TC_callInsts.push_back(&I);
+  }
 
-    if (ret==2) {   TJ_callInsts.push_back(&I); }
-    
+  if (ret == 2) {
+    TJ_callInsts.push_back(&I);
+  }
+}
+void EnumerateCallInst::Init_Insencitive() {
+
+  for (auto &F : *M) {
+    Insencitive[&F] = new node;
+    Insencitive[&F]->I = &F;
+  }
+}
+
+void EnumerateCallInst::Threads(Function *F,
+                                std::list<llvm::CallInst *> context) {
+  for (auto &BB : *F) {
+    for (auto &I : BB) {
+      if (auto *CI = dyn_cast<CallInst>(&I)) {
+
+        auto ret = checkIfMatch(CI->getCalledFunction());
+
+        // errs()<<" the call instruction analysed is "<<*CI<<"\n";
+        if (ret == 1) { // thread create
+          Thread_Calls[context] = CI;
+          //  context.push_back(CI);
+          auto x = context;
+
+          if (auto *II = dyn_cast<Function>(CI->getOperand(2))) {
+            x.push_back(CI);
+            Threads(II, x);
+          }
+        }
+        if (ret == 2) { // thread join
+          Join_Calls[context] = CI;
+        }
+        if (ret == 3) { // Normal function call
+          auto x = context;
+          x.push_back(CI);
+          Threads(CI->getCalledFunction(), x);
+        }
+        // if(auto *II = dyn_cast<InvokeInst>(&I)){
+        //     visitInvokeInst(*II);
+        // }
+      }
+    }
+  }
+}
+
+void EnumerateCallInst::CreateCallGraph(Function *F, node *root,
+                                        int Thread_depth, int Call_depth) {
+
+  for (auto &BB : *F) {
+
+    for (auto &I : BB) {
+
+      if (auto *CI = dyn_cast<CallInst>(&I)) {
+
+        auto ret = checkIfMatch(CI->getCalledFunction());
+
+        if (ret == 1) { // thread call
+          if (Call_depth >= 3) {
+            auto *II = dyn_cast<Function>(CI->getOperand(2));
+            root->Thread.push_back(Insencitive[II]);
+            //
+          }
+          auto *II = dyn_cast<Function>(CI->getOperand(2));
+          node *temp = new node;
+          temp->I = &I;
+
+          root->Thread.push_back(temp);
+
+          CreateCallGraph(II, temp, Thread_depth + 1, Call_depth + 1);
+        }
+
+        if (ret == 2) { // join calll
+          root->Join.push_back(&I);
+        }
+
+        if (ret == 3) { // user defined function call
+          auto II = CI->getCalledFunction();
+          if (Call_depth >= 3) {
+            root->succ.push_back(Insencitive[CI->getCalledFunction()]);
+            //
+          } else {
+            // errs()<<"the normal function call is "<<*CI<<"\n";
+            node *temp = new node;
+            temp->I = &I;
+            root->succ.push_back(temp);
+            CreateCallGraph(CI->getCalledFunction(), temp, Thread_depth,
+                            Call_depth + 1);
+          }
+        }
+      }
+    }
+  }
+}
+
+void EnumerateCallInst::Create_ContextInsensitve(
+    std::map<Function *, int> visited) {
+
+  for (auto x : Insencitive) {
+    if (!visited[x.first]) {
+      visited[x.first]++;
+      for (auto &BB : *x.first) {
+
+        for (auto &I : BB) {
+
+          if (auto *CI = dyn_cast<CallInst>(&I)) {
+
+            auto ret = checkIfMatch(CI->getCalledFunction());
+
+            if (ret == 1) { // thread call
+              auto *II = dyn_cast<Function>(CI->getOperand(2));
+
+              auto it = std::find(Insencitive[x.first]->Thread.begin(),
+                                  Insencitive[x.first]->Thread.end(),
+                                  Insencitive[II]);
+              if (it != Insencitive[x.first]->Thread.end()) {
+
+                Insencitive[x.first]->Thread.push_back(Insencitive[II]);
+              }
+
+              // }
+            }
+            if (ret == 2) { // join calll
+            }
+            if (ret == 3) {
+              // user defined function call
+              auto *II = dyn_cast<Function>(CI->getOperand(2));
+              auto it =
+                  std::find(Insencitive[x.first]->succ.begin(),
+                            Insencitive[x.first]->succ.end(), Insencitive[II]);
+              if (it != Insencitive[x.first]->succ.end()) {
+
+                Insencitive[x.first]->Thread.push_back(Insencitive[II]);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+void EnumerateCallInst::RunAlias(node *root) {
+
+  std::queue<node *> qu;
+  if (auto x = dyn_cast<Function>(root->I)) {
+    A.runOnFunction(*x, root);
+
+  }
+
+  else {
+    auto ci = dyn_cast<CallInst>(root->I);
+    int ret = checkIfMatch(ci->getCalledFunction());
+
+    if (ret == 1) {
+      auto f = dyn_cast<Function>(ci->getOperand(2));
+
+      A.runOnFunction(*f, root);
+    }
+    if (ret == 3) {
+      A.runOnFunction(*(ci->getCalledFunction()), root);
+    }
+  }
+}
+
+void EnumerateCallInst::BFS(node *start) {
+
+//   errs() << "starting the BFS " << "  \n";
+  if (!start)
+    return; // Handle null input
+
+  std::queue<node *> q;          // Queue for BFS
+  std::map<node *, int> visited; // Set to track visited nodes
+
+  // Initialize the BFS
+  q.push(start);
+
+  std::cout << "BFS traversal order: ";
+
+  while (!q.empty()) {
+    node *current = q.front();
+    q.pop();
+
+    // Process the current node (printing its ID here)
+    visited[current]++;
+    RunAlias(current);
+    // if (isa<Function>(current->I)) {
+    //   errs() << "doing bFS  " << dyn_cast<Function>(current->I)->getName().str()
+    //          << " \n";
+    // } else {
+    //   errs() << "doing bFS  " << *(current->I) << " \n";
+    // }
+    // Traverse the successors
+    for (node *neighbor : current->succ) {
+      if (visited[current] + visited[neighbor] < 3) {
+        q.push(neighbor);
+        // visited.insert(neighbor);
+      }
+    }
+    for (node *neighbor : current->Thread) {
+      if (visited[current] + visited[neighbor] < 3) {
+        q.push(neighbor);
+        // visited.insert(neighbor);
+      }
+    }
+  }
+  std::cout << std::endl;
 }
 
 void EnumerateCallInst::visitInvokeInst(InvokeInst &I) {
-    // Check if the function being called is in the search set
-    Function *call;
-    call = I.getCalledFunction();
-    bool ret;
+  // Check if the function being called is in the search set
+  Function *call;
+  call = I.getCalledFunction();
+  bool ret;
 
-    ret = checkIfMatch(call);
-    if (ret) {
+  ret = checkIfMatch(call);
+  if (ret) {
 #ifdef MUT_DEBUG
-        errs() << "DEBUG: Matching InvokeInst found\n" << I << '\n';
+    errs() << "DEBUG: Matching InvokeInst found\n" << I << '\n';
 #endif
-        invokeInsts.push_back(&I);
-    }
+    invokeInsts.push_back(&I);
+  }
 }
 
 MemoryLocation EnumerateCallInst::getMem(Value *V) {
-    if(isa<AllocaInst>(V)){
-       
-        auto AI=dyn_cast<AllocaInst>(V);
-         Module *M =AI->getFunction()->getParent();
-             const DataLayout &DL = M->getDataLayout();
-        Type *AllocatedType = AI->getAllocatedType();
-        uint64_t Size = DL.getTypeStoreSize(AllocatedType);
-            return MemoryLocation(AI, Size);
-    }
-        if(auto L= dyn_cast<LoadInst>(V))
+  if (isa<AllocaInst>(V)) {
+
+    auto AI = dyn_cast<AllocaInst>(V);
+    Module *M = AI->getFunction()->getParent();
+    const DataLayout &DL = M->getDataLayout();
+    Type *AllocatedType = AI->getAllocatedType();
+    uint64_t Size = DL.getTypeStoreSize(AllocatedType);
+    return MemoryLocation(AI, Size);
+  }
+  if (auto L = dyn_cast<LoadInst>(V))
     return MemoryLocation::get(L);
 }
 
-void EnumerateCallInst::makepairs(std::vector<CallInst *> TC_callInsts, std::vector<CallInst *> TJ_callInsts) {
-    // SAA->run_main(TC_callInsts[1]->getFunction()->getParent());
-    
-   for(auto i=0;i<TC_callInsts.size();i++){
-        for(auto j=0;j<TJ_callInsts.size();j++){
-            auto x= TC_callInsts[i]->getArgOperand(0);
-            auto y= TJ_callInsts[j]->getArgOperand(0);
-               BasicBlock *BB=  TC_callInsts[i]->getParent();
-                Function *F = BB->getParent();
-                auto &LBB = F->back();
+void EnumerateCallInst::makepairs(std::vector<CallInst *> TC_callInsts,
+                                  std::vector<CallInst *> TJ_callInsts) {
 
+  // errs()<<"entered the makepairs\n";
+  //     auto instr= dyn_cast<Instruction>(TC_callInsts[0]);
+  //     if (const BasicBlock* bb = instr->getParent()) {
+  //     if (const Function* func = bb->getParent()) {
+  //           errs()<<"weweweweentered the makepairs\n";
+  //          errs()<<*func->getParent()<<"\n";
+  //     }
+  //     else{
+  //         errs()<<"the parent is inner null\n";
+  //     }
+  // }
+  // else{
+  //     errs()<<"the parent is null\n";
+  // }
 
+  // SAA->run_main(M);
 
-            
-                AliasSet& AR1= AA->getAliasSetFor(getMem(x));
-                AliasSet& AR2= AA->getAliasSetFor(getMem(y));
-                bool alias=false;
-                for(auto& temp: AR1){
-                     errs()<<"the alias are "<<*temp.getValue()<< *TC_callInsts[i]<<"\n";
-                    if(temp.getValue()==y){
-                        alias=true;
-                    }
-                }
-            for(auto& temp: AR2){
-                   errs()<<"the alias are "<<*temp.getValue()<< *TJ_callInsts[j]<<"\n";
-                    if(temp.getValue()==x){
-                        alias=true;
-                    }
-                }
-                if(alias){
-                pairs.push_back(std::make_pair(TC_callInsts[i],TJ_callInsts[j]));
-                }
-                
-            // if(SAA->isAlias(x, y, &LBB.back())){
-            //     pairs.push_back(std::make_pair(TC_callInsts[i],TJ_callInsts[j]));
-            //     }
-        }
-    }
+  //    for(auto i=0;i<TC_callInsts.size();i++){
+  //         for(auto j=0;j<TJ_callInsts.size();j++){
+  //             auto x= TC_callInsts[i]->getArgOperand(0);
+  //             auto y= TJ_callInsts[j]->getArgOperand(0);
+  //                BasicBlock *BB=  TC_callInsts[i]->getParent();
+  //                 Function *F = BB->getParent();
+  //                 auto &LBB = F->back();
+  //                 AliasSet& AR1= AA->getAliasSetFor(getMem(x));
+  //                 AliasSet& AR2= AA->getAliasSetFor(getMem(y));
+  //                 bool alias=false;
+  //             //     for(auto& temp: AR1){
+  //             //          errs()<<"the alias are "<<*temp.getValue()<<
+  //             *TC_callInsts[i]<<"\n";
+  //             //         if(temp.getValue()==y){
+  //             //             alias=true;
+  //             //         }
+  //             //     }
+  //             // for(auto& temp: AR2){
+  //             //        errs()<<"the alias are "<<*temp.getValue()<<
+  //             *TJ_callInsts[j]<<"\n";
+  //             //         if(temp.getValue()==x){
+  //             //             alias=true;
+  //             //         }
+  //             //     }
+  //                 // if(alias){
+  //                 //
+  //                 pairs.push_back(std::make_pair(TC_callInsts[i],TJ_callInsts[j]));
+  //                 // }
 
+  //             if(SAA->isAlias(y, x, &LBB.back())){
+  //                 pairs.push_back(std::make_pair(TC_callInsts[i],TJ_callInsts[j]));
+  //                 }
+  //                 else{
+  //                     errs()<<*x <<" ---- "<<*y<<"are not aliases
+  //                     --------------------\n";
+  //                 }
 
+  //         }
+  //     }
 
+//   for (auto x : pairs) {
 
-
-
-
-
-
-    for(auto x : pairs){
-
-        errs()<<"the pairs are "<<*x.first<<"  "<<*x.second<<"\n";
-    }
+//     errs() << "the pairs are " << *x.first << "  " << *x.second << "\n";
+//   }
 }
 
 int EnumerateCallInst::checkIfMatch(Function *F) {
-    char *demangledFuncName;
-    std::string foundName;
+  char *demangledFuncName;
+  std::string foundName;
 
-    if (F) {
-	// Assumption: calls to searched for will never be indirect
+  if (F) {
+    // Assumption: calls to searched for will never be indirect
 #ifdef MUT_DEBUG_VERB
-	errs() << "DEBUG: function calling: ";
-	errs() << F->getName()<< '\n';
+    errs() << "DEBUG: function calling: ";
+    errs() << F->getName() << '\n';
 #endif
-        if (isCpp) {
-            demangledFuncName = demangleCpp(F->getName());  // potentially returns malloced char*
-            if (demangledFuncName == NULL) {
-                // If demangling failed, assume the function name is a non mangled
-                foundName= F->getName();
-            }
-            else {
-                foundName = removeParameters(demangledFuncName);
-                free(demangledFuncName);
-            }
-        }
-        else {
-            foundName = F->getName();
-        }
+    if (isCpp) {
+      demangledFuncName =
+          demangleCpp(F->getName()); // potentially returns malloced char*
+      if (demangledFuncName == NULL) {
+        // If demangling failed, assume the function name is a non mangled
+        foundName = F->getName();
+      } else {
+        foundName = removeParameters(demangledFuncName);
+        free(demangledFuncName);
+      }
+    } else {
+      foundName = F->getName();
+    }
 
-	if (ThreadCreate.count(foundName)) {
-	    // Found a match
-            return 1;
-	}
+    if (ThreadCreate.count(foundName)) {
+      // Found a match
+      return 1;
+    }
     if (ThreadJoin.count(foundName)) {
-	    // Found a match
-            return 2;
-	}
+      // Found a match
+      return 2;
     }
-    else {
-	errs () << "WARNING: Indirect function call found, ignoring\n";
+    if (!(F->isDeclaration() || F->isIntrinsic() ||
+          F->isDeclarationForLinker())) {
+      return 3;
     }
+    // errs()<<"the function is "<<foundName<<"\n";
+  } else {
+    errs() << "WARNING: Indirect function call found, ignoring\n";
+  }
 
-    return 0;
+  return 0;
 }
 
-void EnumerateCallInst::printInstDebugInfo(int x){
+void EnumerateCallInst::printInstDebugInfo(int x) {
 
-if(x==1){
-    callInsts=TC_callInsts;
+  if (x == 1) {
+    callInsts = TC_callInsts;
     printInstDebugInfo();
-}
-else{
-    callInsts=TJ_callInsts;
+  } else {
+    callInsts = TJ_callInsts;
     printInstDebugInfo();
+  }
+
+  makepairs(TC_callInsts, TJ_callInsts);
 }
-
-makepairs(TC_callInsts,TJ_callInsts);
-
-} 
 
 void EnumerateCallInst::printInstDebugInfo() const {
-    // Iterate over each  call instruction and print out
-    // it's information if found. Otherwise print out a warning
-    errs()<<"entered the printInstDebugInfo\n";
-    MDNode *metaNode;
-  
-    for (unsigned i = 0; i < callInsts.size(); i++) {
-        errs()<<callInsts[i]->getCalledFunction()->getName()<<"\t";
-        
-        // errs()<<"parameters are "<<*CallInstparm.at(callInsts[i])<<"\t";
-	metaNode = callInsts[i]->getMetadata("dbg");
-	if (metaNode) {
-	    if (auto *Loc = llvm::dyn_cast<llvm::DILocation>(metaNode)) {
-            auto x= Loc->getScope();
-            StringRef File = Loc->getFilename();
-            unsigned Line = Loc->getLine();
-            auto f= x->getScope();
-            llvm::errs() << File << '\t' << Line << " \t" <<x<<'\n';
-        }
-	}
-	else {
-	    errs() << "Warning: No meta data found for instruction "
-		   << i << '\n';
-	}
+  // Iterate over each  call instruction and print out
+  // it's information if found. Otherwise print out a warning
+  errs() << "entered the printInstDebugInfo\n";
+  MDNode *metaNode;
+
+  for (unsigned i = 0; i < callInsts.size(); i++) {
+    errs() << callInsts[i]->getCalledFunction()->getName() << "\t";
+
+    // errs()<<"parameters are "<<*CallInstparm.at(callInsts[i])<<"\t";
+    metaNode = callInsts[i]->getMetadata("dbg");
+    if (metaNode) {
+      if (auto *Loc = llvm::dyn_cast<llvm::DILocation>(metaNode)) {
+        auto x = Loc->getScope();
+        StringRef File = Loc->getFilename();
+        unsigned Line = Loc->getLine();
+        auto f = x->getScope();
+        llvm::errs() << File << '\t' << Line << " \t" << x << '\n';
+      }
+    } else {
+      errs() << "Warning: No meta data found for instruction " << i << '\n';
     }
-    // for (unsigned i = 0; i < invokeInsts.size(); i++) {
-    //     metaNode = invokeInsts[i]->getMetadata("dbg");
-    //     if (metaNode) {
-    //         DILocation Loc(metaNode);
-    //         StringRef File = Loc.getFilename();
-    //         unsigned Line = Loc.getLineNumber();
-    //         errs() << File << '\t' << Line << '\n';
-    //     }
-    //     else {
-    //         errs() << "Warning: No meta data found for instruction "
-    //                << i << '\n';
-    //     }
-    // }
-    for (unsigned i = 0; i < invokeInsts.size(); i++) {
+  }
+  // for (unsigned i = 0; i < invokeInsts.size(); i++) {
+  //     metaNode = invokeInsts[i]->getMetadata("dbg");
+  //     if (metaNode) {
+  //         DILocation Loc(metaNode);
+  //         StringRef File = Loc.getFilename();
+  //         unsigned Line = Loc.getLineNumber();
+  //         errs() << File << '\t' << Line << '\n';
+  //     }
+  //     else {
+  //         errs() << "Warning: No meta data found for instruction "
+  //                << i << '\n';
+  //     }
+  // }
+  for (unsigned i = 0; i < invokeInsts.size(); i++) {
     if (auto *metaNode = invokeInsts[i]->getMetadata("dbg")) {
-        if (auto *Loc = llvm::dyn_cast<llvm::DILocation>(metaNode)) {
-            StringRef File = Loc->getFilename();
-            unsigned Line = Loc->getLine();
-            llvm::errs() << File << '\t' << Line << '\n';
-        }
+      if (auto *Loc = llvm::dyn_cast<llvm::DILocation>(metaNode)) {
+        StringRef File = Loc->getFilename();
+        unsigned Line = Loc->getLine();
+        llvm::errs() << File << '\t' << Line << '\n';
+      }
     }
+  }
 }
 
-}
+void EnumerateCallInst::searchCpp() { isCpp = true; }
 
-int EnumerateCallInst::removeFromParentRepZero(unsigned index, unsigned size, bool sign) {
-    int errorCode;
-    bool isCallInst;
-    Instruction *curInst;
-
-    curInst = getInstructionAt(index, &isCallInst, &errorCode);
-    errs()<<"the call instr ************"<<*curInst<<"  \n";
-    if (curInst == NULL) {
-	return errorCode;
-    }
-
-    if (isCallInst) {
-#ifdef MUT_DEBUG
-        errs() << "DEBUG: Removing CallInst:\n\t" << *(callInsts[index]) << '\n';
-#endif
-        if (sign) {
-            eraseFromParentOrReplace(callInsts[index], 0, sizeof(int), true);
-        }
-        else {
-            eraseFromParentOrReplace(callInsts[index], 0, sizeof(unsigned), false);
-        }
-    }
-    else if (!isCallInst) {
-#ifdef MUT_DEBUG
-        errs() << "DEBUG: Removing InvokeInst:\n\t" << *(invokeInsts[index - callInsts.size()])
-               << '\n';
-#endif
-        if (sign) {
-            eraseInvokeOrRep(invokeInsts[index - callInsts.size()], 0, sizeof(int), true);
-        }
-        else {
-            eraseInvokeOrRep(invokeInsts[index - callInsts.size()], 0, sizeof(unsigned), false);
-        }
-    }
-    else {
-        errs() << "Warning: in EnumerateCallInst::removeFromParentRepZero(): "
-                  "unknown return code from isValidIndex()\n";
-    }
-
-
-    deletedIndices.insert(index);
-    return 0;
-}
-
-void EnumerateCallInst::eraseInst(unsigned index) {
-    deletedIndices.insert(index);
-    callInsts[index]->eraseFromParent();
-#ifdef MUT_DEBUG
-    errs() << "\tDEBUG: Index deleted\n";
-#endif
-}
-
-int EnumerateCallInst::isValidIndex(unsigned index) {
-    // Indexs are considered as if CallInsts and InvokeInsts were one
-    // continuous array. 
-    if (index >= callInsts.size() + invokeInsts.size()) {
-#ifdef MUT_DEBUG
-	errs() << "\tDEBUG: Index out of bounds\n";
-#endif
-	return -1; // index out of bounds
-    }
-    if (deletedIndices.count(index)) {
-#ifdef MUT_DEBUG
-	errs() << "\tDEBUG: Index already removed\n";
-#endif
-	return -2; // index already removed from parent.
-    }
-
-    if (index < callInsts.size()) {
-        return 0;
-    }
-    else {
-        return 1;
-    }
-}
-
-/// Attempt to replace the instruction at the passed index with the
-/// passed instruction.
-///
-/// \param index Index to attemp to replace
-/// \param inst Instruction to replace the instruction at index with
-/// \return Returns 0 on success, -1 if the index is out of bounds, -2
-/// if the position has been modified already.
-int EnumerateCallInst::replaceInstWithInst(unsigned index, Instruction *inst) {
-#ifdef MUT_DEBUG
-    errs() << "DEBUG: in EnumerateCallInst::replaceInstWithInst\n";
-#endif
-    Instruction *curInst;
-    int errorCode;
-    bool isCallInst;
-
-    curInst = getInstructionAt(index, &isCallInst, &errorCode);
-
-    if (curInst == NULL) {
-        return errorCode;
-    }
-#ifdef MUT_DEBUG
-    errs() << "DEBUG: replacing instruction:\n" << *curInst << "\nwith\n"
-           << *inst << '\n';
-#endif
-
-    // Index is valid, so add the index to the deleted map and perform the
-    // replacement
-    deletedIndices.insert(index);
-
-    // If we are dealing with an invoke instruction then it is a terminator for
-    // the current basic block. Before doing the replacment, insert a branch to
-    // the normal label of the invoke instruction as the new terminator
-    if (!isCallInst) {
-        BasicBlock *normDest;
-        BranchInst *normBranch;
-        normDest = ((InvokeInst *)curInst)->getNormalDest();
-        normBranch = BranchInst::Create(normDest, curInst->getParent());
-        (void) normBranch; // get rid of set but not used warning.
-    }
-
-
-    BasicBlock::iterator iter(curInst);
-    ReplaceInstWithInst(curInst, inst);
-
-    return 0;
-}
-
-int EnumerateCallInst::markMutated(unsigned index) {
-    int ret = isValidIndex(index);
-
-    if (ret < 0) {
-	return ret;
-    }
-    deletedIndices.insert(index);
-
-    return 0;
-}
-
-Instruction *EnumerateCallInst::getInstructionAt(unsigned index, bool *isCallInst, 
-        int *errorCode) {
-    int ret = isValidIndex(index);
-    if (ret < 0) {
-        if (errorCode != NULL) {
-            *errorCode = ret;
-        }
-        return NULL;
-    }
-    if (ret == 0) {
-        if (isCallInst != NULL) {
-            *isCallInst = true;
-        }
-        return callInsts[index];
-    }
-    else if (ret == 1) {
-        if (isCallInst != NULL) {
-            *isCallInst = false;
-        }
-        return invokeInsts[index - callInsts.size()];
-    }
-    else {
-        errs() << "Warning: in EnumerateCallInst::getInstructionAt(): unknown "
-                  "return code from isValidIndex()\n";
-    }
-    return NULL;
-}
-
-int EnumerateCallInst::removeFromParent(unsigned index) {
-#ifdef MUT_DEBUG
-    errs() << "DEBUG: Attempting to remove index " << index << " from parent\n";
-    errs() << "\tDEBUG: callInsts.size() == " << callInsts.size() << '\n';
-    errs() << "DEBUG: callinst[index] has: " << callInsts[index]->getNumUses()
-	   << " uses\n";
-#endif
-    int ret;
-    ret = isValidIndex(index);
-    if (ret) {
-	return ret;
-    }
-    if (callInsts[index]->hasNUses(0)) {
-	eraseInst(index);
-    }
-    else {
-	return -3; // Instruction still has uses
-    }
-
-
-    return 0;
-}
-
-void EnumerateCallInst::searchCpp() {
-    isCpp = true;
-}
-
-bool EnumerateCallInst::getIsCpp() {
-    return isCpp;
-}
-
+bool EnumerateCallInst::getIsCpp() { return isCpp; }
