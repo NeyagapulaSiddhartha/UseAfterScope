@@ -8,38 +8,40 @@ void* threadFunction2(void* arg) {
 }
 
 
-void fun4(int *i){
+void fun4(int *fun4_i){
 
-    int *a ;
-    a=i;
+    int *fun4_a ;
+    fun4_a=fun4_i;
     return ;
 }
 
 // Function for Thread 2
-void fun3(int **i){
+void fun3(int **fun3_i){
 
-    int *a ;
-    a=*i;
+    int *fun3_a ;
+    fun3_a=*fun3_i;
             pthread_t thread2;
-     fun4(*i);
+     fun4(*fun3_i);
     return ;
 }
 
-void fun2(int **i){
+void fun2(int **fun2_i){
 
-    int *a ;
-    a=*i;
+    int *fun2_a ;
+
           
-    fun3(i);
-    fun3(i);
+    fun3(fun2_i);
+
+        fun2_a=*fun2_i;
+    fun3(fun2_i);
     return ;
 }
 
-void fun(int *i){
+void fun(int *fun_i){
 
-    int *a ;
-    a=i;
-    fun2(&a);
+    int *fun_a ;
+    fun_a=fun_i;
+    fun2(&fun_a);
     return ;
 }
 
