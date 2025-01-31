@@ -610,7 +610,7 @@ BasicBlock * alias_c::getExitBlock(Function &F)
   {
     final_list=B_map[FB];
   }
-  errs()<<"-------------------*****printing aliases in func **************-------------------\t"<<F.getName().str()<<"\n";
+  // errs()<<"-------------------*****printing aliases in func **************-------------------\t"<<F.getName().str()<<"\n";
 
   //  for (const auto& i : final_list) {
 
