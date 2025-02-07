@@ -30,6 +30,10 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Demangle/Demangle.h"
+#include "llvm/Transforms/Scalar/SimplifyCFG.h"
+#include "llvm/Transforms/Utils/LowerInvoke.h"
+
 using namespace llvm;
 
 void print(node root) {
@@ -74,16 +78,41 @@ struct scopePass : public PassInfoMixin<scopePass> {
   }
 
   PreservedAnalyses run(Module &M, ModuleAnalysisManager &MAM) {
+ EnumerateCallInst ECI;
+    llvm::Function *F = M.getFunction("main");
+// for(Function &P : M){
+
+//     Function *F =&P;
+// // if (!(F->isDeclaration() || F->isIntrinsic() ||
+// //           F->isDeclarationForLinker() || !F->isDSOLocal() || F->getLinkage() == GlobalValue::LinkOnceODRLinkage ) ) {
+            
+// //           errs() << "the function is " << F->getName() << "\n";
+// // }
+// //!F->isDSOLocal()  && ( F->getLinkage() != GlobalValue::LinkOnceODRLinkage) &&  &&  F->isDSOLocal()
+// if(!(F->isDeclaration() || F->isIntrinsic() || F->isDeclarationForLinker()) && ( F->getLinkage() != GlobalValue::LinkOnceODRLinkage)&& ( F->getLinkage() != GlobalValue::InternalLinkage))
+// {
+//   errs() << "the function is " << F->getName() << "\n";
+// }
+// }
+  
+
+    // for(Function &F:M){
+
+    //   if((F.getLinkage() != GlobalValue::LinkOnceODRLinkage)&& (F.isDSOLocal())){
+    //     errs()<<"the function is "<<F.getName()<<"\n";
+    //   }
+
+    // }
 
 
-    //  errs()<<"the module ----------------"<<M<<"\n";
+   
+    // ECI.ThreadCreateName("pthread_create");
+    // ECI.ThreadJoinName("pthread_join");
+    ECI.ThreadCreateName("std::thread::thread");
+    ECI.ThreadJoinName("std::thread::join()");
 
-    EnumerateCallInst ECI;
-    ECI.ThreadCreateName("pthread_create");
-    ECI.ThreadJoinName("pthread_join");
-
-    llvm::Function *main_func = M.getFunction("main");
-    ECI.Threads(main_func, {});
+    // llvm::Function *main_func = M.getFunction("main");
+    // ECI.Threads(main_func, {});
 
     // for(auto x : ECI.Thread_Calls){
 
@@ -105,12 +134,23 @@ struct scopePass : public PassInfoMixin<scopePass> {
     ECI.M = &M;
     // ECI.AA=&AST;
 
-    llvm::Function *F = M.getFunction("main");
+    // llvm::Function *F = M.getFunction("main");
 
-    errs() << "---------------**********************----------------- \n";
-    alias_c A;
-    A.M = &M;
-    CallInst *call = nullptr;
+    // for(BasicBlock &BB : *F){
+    //   for(Instruction &I : BB){
+    //     if(isa<InvokeInst>(&I)){
+    //       auto x = dyn_cast<CallInst>(&I);
+
+    //       errs()<<x->getCalledFunction()->getName()<<"\n";
+    //       errs()<<x->getOperand(1);
+    //     }
+    //   }
+    // }
+
+    // errs() << "---------------**********************----------------- \n";
+    // alias_c A;
+    // A.M = &M;
+    // // // CallInst *call = nullptr;
 
     node root;
     root.I = M.getFunction("main");
@@ -128,21 +168,21 @@ struct scopePass : public PassInfoMixin<scopePass> {
 
     ECI.BFS(&root);
 
-    auto x = A.runOnFunction(*M.getFunction("main"),
-                             &root); // running analysis on the main function
-    root.aaResult = x;
-    auto final_list = x;
+    // auto x = A.runOnFunction(*M.getFunction("main"),
+    //                          &root); // running analysis on the main function
+    // root.aaResult = x;
+    // auto final_list = x;
 
-    // print(root);
+    // // print(root);
 
-    // ECI.SAA=&SAA;
-    errs() << "after main  \n";
+    // // ECI.SAA=&SAA;
+    // errs() << "after main  \n";
 
-    ECI.visit(F);
-    // ECI.printInstDebugInfo(1);
-    // ECI.printInstDebugInfo(2);
+    // ECI.visit(F);
+    // // ECI.printInstDebugInfo(1);
+    // // ECI.printInstDebugInfo(2);
 
-    errs() << "scopePass\n";
+    // errs() << "scopePass\n";
 
     return PreservedAnalyses::all();
   }

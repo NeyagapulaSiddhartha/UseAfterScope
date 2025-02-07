@@ -45,6 +45,11 @@ using namespace llvm;
   //      }
   //  }
 
+bool alias_c::isSubstring( std::string B) {
+  std::string A = "std::thread::thread";
+    return B.find(A) != std::string::npos;  // Check if B is a substring of A
+}
+
 
    std::string alias_c::get_ret(Value* II) {
 //  errs()<<*M;
@@ -69,6 +74,10 @@ using namespace llvm;
                   auto strrr=dyn_cast<DbgDeclareInst>(&I)->getVariable()->getName().str();
                 //   errs()<<"this is working "<<dyn_cast<DbgDeclareInst>(&I)->getVariable()->getName().str()<<"   \n";
                 //  errs()<<" the string  \n";
+                if(strrr.find("arg")!=std::string::npos){
+
+                  errs()<<"the instruction with arg is is "<<*II<<"\n";
+                }
                 return strrr;
                 }
   //           }
@@ -83,30 +92,7 @@ using namespace llvm;
 // //  auto f = II->getB
     return "arg";
    
-;      // for(Function &F : *M)
-      // {
-      //   for(auto &BB : F)
-      //   {
-      //     for(auto &I : BB)
-      //     {
-      //       // if(isa<llvm::DbgDeclareInst>(&I))
-      //       // {
-      //       //   // errs()<<"the instruction is "<<I<<"\n";
-      //       //   // errs()<<"the value is "<<*I.getOperand(0)<<"\n";
-      //       //   // if(dyn_cast<DbgDeclareInst>(&I)->getAddress()==II)
-      //       //   // {
-      //       //   //     // auto strrr=dyn_cast<DbgDeclareInst>(&I)->getVariable()->getName().str();
-      //       //   //   //   errs()<<"this is working "<<dyn_cast<DbgDeclareInst>(&I)->getVariable()<<"   \n";
-      //       //   //   //  errs()<<" the string  \n";
-      //       //     return "sid";
-      //       //     // }
-      //       // }
-      //       // else{
-      //         errs()<<"the instruction is "<<I<<"\n";
-      //       // }
-      //     }
-      //   }
-      // }
+  
    }
 
 bool alias_c:: is_variable(Value * I)
@@ -245,7 +231,7 @@ std::vector<Value *>  alias_c::Gen (BasicBlock *BB,Value *ROperand,   std:: set<
       // errs()<<"the argument gotten in gen set is "<<*ROperand<<"\n";
     }
 
-    ROperand=dyn_cast<Instruction>(ROperand)->getOperand(0);
+    ROperand=dyn_cast<LoadInst>(ROperand)->getOperand(0);
         
     x++;
   }
@@ -373,9 +359,12 @@ std:: set<std::pair<Value*,Value *>>  alias_c::uni( std:: set<std::pair<Value*,V
 
 bool alias_c:: processblock(BasicBlock *BB, node * root)
 {
-   int i=0;
- //errs()<<"-------------------processing new block------------------\n";
+  
+      int i=0;
 
+        
+    // errs()<<"-------------------processing new block------------------\n";
+      // errs()<<"the block is "<<*BB<<"\n";
  int change =0;
   // std:: map<BasicBlock* , std:: set<std::make_pair<Value* ,Value*>>>B_map;
   std:: set< std::pair<Value*,Value *> >iin ;  ///////////////////calculate in set
@@ -410,11 +399,11 @@ bool alias_c:: processblock(BasicBlock *BB, node * root)
         if(CallInst *ci = dyn_cast<CallInst>(&I))
         {
                     auto f= ci->getCalledFunction();
-                
-                  
-                  if(!(f->isDeclaration() || f->isIntrinsic() || f->isDeclarationForLinker()))
+               auto p =llvm::demangle(f->getName().str());
+          // errs()<<"the call instruction is "<<*ci<<"\n";
+                  if(!(f->isDeclaration() || f->isIntrinsic() || f->isDeclarationForLinker()) && ( f->getLinkage() != GlobalValue::LinkOnceODRLinkage)&& ( f->getLinkage() != GlobalValue::InternalLinkage))
                   {
-                      // errs()<<"the call instruction is %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% \t"<<f->getName().str()<<"\n";
+                       errs()<<"the call instruction is %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% \t"<<f->getName().str()<<"\n";
                         std::set<std::pair<Value*, Value*>> temp;
                         i=0;
                         for (auto &arg : f->args())
@@ -434,10 +423,11 @@ bool alias_c:: processblock(BasicBlock *BB, node * root)
 
                           if(x->I==ci || x->I == f){
                             temproot=x;
+                            temproot->params=uni (temproot->params,uni(gmap,temp));
                           }
                         
                         }
-                          temproot->params=uni (temproot->params,uni(gmap,temp));
+                          
                         // runOnFunction(*f);
                   }
 
@@ -476,6 +466,46 @@ bool alias_c:: processblock(BasicBlock *BB, node * root)
                           // params[f ]=uni(gmap,temp);
                         // runOnFunction(*f);
                     }
+                   
+              else if(isSubstring(p))
+                  {
+                      errs()<<"the std thread create is called \t"<<dyn_cast<Function>(ci->getArgOperand(1))->getName().str()<<"\n";;
+                      std::set<std::pair<Value*, Value*>> temp;
+                      i=0;
+                      llvm::Function *f=dyn_cast<Function>(ci->getArgOperand(1));
+                      //errs()<<"the function called by pthreads siiss  is \t"<<f->getName().str()<<"\n";
+                    for (auto &arg : f->args())
+                    {
+                        // if(i<2)
+                        // continue;
+                      errs()<< "the arg is \t"<<arg<<"\t"<<"the operand is \t"<<*ci->getArgOperand(2+i)<<"\n";
+                      std::vector<Value*> tgen = Gen(BB,ci->getOperand(2+i),gmap); // handling only one parameter  , for multiple parameteres iterate through them and find all pts pairs 
+                      for(auto s : tgen)
+                          {
+                              temp.insert(std::make_pair(&arg,s));                          
+                          }
+                          i++;
+                        }
+
+                        // errs()<<"printing is done%%%%%%$$$$%$%$#@@@)))))))))))))))))\n";
+                          node * temproot;
+                        for(auto x : root->Thread)     /// what is this code doing dude please find out 
+                        {
+
+                          if(x->I==ci || x->I == f){
+                            temproot=x; 
+                            temproot->params=uni (temproot->params,uni(gmap,temp));
+                          }
+                        
+                        }
+                       // auto oo =uni(gmap,temp);
+                          // temproot->params=uni (temproot->params,uni(gmap,temp););
+
+                          // errs()<<"the params are done %%%%%%%%%%%%%%%$$$$%$%$#@@@)))))))))))))))))\n";
+                          // params[f ]=uni(gmap,temp);
+                        // runOnFunction(*f);
+                    }
+                
                 
                 else{
                   // call_context.p(x);
@@ -491,7 +521,7 @@ bool alias_c:: processblock(BasicBlock *BB, node * root)
         if(isa<ConstantPointerNull>(si->getOperand(0)))
         //errs()<<"this is the constant pointer null---------------------------- \t"<< *si->getOperand(0)<<"\n";
         {
-            errs()<<"the store instruction in ConstantPointerNull is  "<<*si<<"\n"; 
+            //errs()<<"the store instruction in ConstantPointerNull is  "<<*si<<"\n"; 
             
               std :: vector< Value *> pointee ;
                 std:: vector < Value *> gen = Gen(BB,OP2,gmap);
@@ -531,6 +561,7 @@ bool alias_c:: processblock(BasicBlock *BB, node * root)
       
       }
     }
+      
 
 
 
@@ -599,17 +630,16 @@ BasicBlock * alias_c::getExitBlock(Function &F)
 
   std::set<std::pair<Value*, Value*>> alias_c::runOnFunction(Function &F, node * root)  {
 
-    if(F.isDeclaration() || F.isIntrinsic() || F.isDeclarationForLinker())
+  if(!(F.isDeclaration() || F.isIntrinsic() || F.isDeclarationForLinker()) && ( F.getLinkage() != GlobalValue::LinkOnceODRLinkage)&& ( F.getLinkage() != GlobalValue::InternalLinkage))
     {
-      return {};
-    }
+
     // write your code here
     std::set<std::pair<Value*, Value*>> final_list =kildal(F,root);
     BasicBlock* FB = getExitBlock(F);
-  if(FB)
-  {
-    final_list=B_map[FB];
-  }
+      if(FB)
+      {
+        final_list=B_map[FB];
+      }
   // errs()<<"-------------------*****printing aliases in func **************-------------------\t"<<F.getName().str()<<"\n";
 
   //  for (const auto& i : final_list) {
@@ -620,38 +650,43 @@ BasicBlock * alias_c::getExitBlock(Function &F)
   //   errs()<<get_ret(i.first);
   //  }
 
- //printKeysWithSameValue(final_list);
+//  printKeysWithSameValue(final_list);
 
-   errs()<<"-------------------*****printing aliases in func **************-------------------\t"<<F.getName().str()<<"\n";
+//    errs()<<"-------------------*****printing aliases in func **************-------------------\t"<<F.getName().str()<<"\n";
 
-for (const auto& i : final_list) {
+// for (const auto& i : final_list) {
 
-  if(is_variable(i.first))
-  {
-    errs()<<get_ret(i.first);
-    errs()<<" = { ";
+//   if(is_variable(i.first))
+//   {
+//     errs()<<get_ret(i.first);
+//     errs()<<" = { ";
      
-          errs()<<" ";
+//           errs()<<" ";
           
           
-    for(const auto &j : final_list)
-  {
+//     for(const auto &j : final_list)
+//   {
     
 
-   if(i.second==j.second && i.second!=nullptr)
-   { 
-        if(is_variable(i.first) && is_variable(j.first))
-        { 
-          errs()<<get_ret(j.first);errs()<<"  ,";
+//    if(i.second==j.second && i.second!=nullptr)
+//    { 
+//         if(is_variable(i.first) && is_variable(j.first))
+//         { 
+//           errs()<<get_ret(j.first);errs()<<"  ,";
          
-        }
-     }
-  }
-  errs()<<" }\n";
-  }
-  }
-errs()<<"-------------------*****fun aliasyes completed **************-------------------\n";
+//         }
+//      }
+//   }
+//   errs()<<" }\n";
+//   }
+//   }
+// errs()<<"-------------------*****fun aliasyes completed **************-------------------\n";
         return final_list;
+
+    }
+    else{
+      return {};
+    }
       }
       
 

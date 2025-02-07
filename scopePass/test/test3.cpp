@@ -1,28 +1,36 @@
 #include <iostream>
 #include <thread>
+#include <chrono> // For sleep
 
-// Function for Thread 1
-void threadFunction1() {
-    std::cout << "Hello from Thread 1! ID: " ;
+using namespace std;
+
+// Thread function
+void thread_function() {
+    cout << "Thread started, processing...\n";
+    this_thread::sleep_for(chrono::seconds(2)); // Simulate work
+    cout << "Thread finished execution\n";
 }
 
-// Function for Thread 2
-void threadFunction2() {
-    std::cout << "Hello from Thread 2! ID: " ;
+// Function to join the thread (takes thread handle as reference)
+void join_thread(thread& t) {
+    if (t.joinable()) { // Check if the thread can be joined
+        t.join();
+        cout << "Thread successfully joined\n";
+    } else {
+        cerr << "Error: Thread is not joinable\n";
+    }
 }
 
 int main() {
-    // Create Thread 1
-    std::thread thread1(threadFunction1);
+    // Create a thread
+    thread t(thread_function);
+    cout << "Thread created in main\n";
 
-    // Create Thread 2
-    std::thread thread2(threadFunction2);
+    // Simulate some work in main before joining
+    this_thread::sleep_for(chrono::seconds(1));
 
-    // Wait for Thread 1 to complete
-    thread1.join();
+    // Join the thread by passing the handle to a function
+    join_thread(t);
 
-    // Wait for Thread 2 to complete
-    thread2.join();
-
-    return EXIT_SUCCESS;
+    return 0;
 }

@@ -16,10 +16,11 @@ void* threadFunction2(void* arg) {
 void* threadFunction1(void* arg) {
      pthread_t  thread2; 
      int a=10;
+     int x;
     printf("Hello from Thread 1! ID: \n");
     pthread_create(&thread2, NULL, threadFunction2, &a);
 
-    pthread_join(thread2, NULL);
+    pthread_join(x, NULL);
 
     return NULL;
 }

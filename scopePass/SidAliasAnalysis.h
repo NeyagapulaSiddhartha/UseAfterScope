@@ -20,7 +20,7 @@
 #include "llvm/Support/FileSystem.h" // For llvm::sys::fs::F_RW
 #include "llvm/IR/DebugInfo.h"
 #include "llvm/IR/DebugLoc.h"
-
+#include "llvm/Demangle/Demangle.h"
 using namespace llvm;
 
 class node{
@@ -44,7 +44,7 @@ struct alias_c  {
 //   std::set<std::pair<BasicBlock*> worklist;
 // alias_c() : FunctionPass(ID) {}
 
-
+bool isSubstring( std::string B);
    std::string get_ret(Value* I);
 
 bool is_variable(Value * I);

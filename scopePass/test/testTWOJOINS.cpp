@@ -6,12 +6,18 @@ void* threadFunction2(void* arg) {
     printf("Hello from Thread 2! ID:\n");
     return NULL;
 }
+void fun5(int *fun5_i){
 
+    int *fun4_a ;
+    fun4_a=fun5_i;
+    return ;
+}
 
 void fun4(int *fun4_i){
 
     int *fun4_a ;
     fun4_a=fun4_i;
+    fun5(fun4_i);
     return ;
 }
 
