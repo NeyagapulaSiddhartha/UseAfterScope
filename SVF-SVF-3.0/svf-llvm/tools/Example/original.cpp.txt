@@ -1,0 +1,554 @@
+ //===- svf-ex.cpp -- A driver example of SVF-------------------------------------//
+//
+//                     SVF: Static Value-Flow Analysis
+//
+// Copyright (C) <2013->  <Yulei Sui>
+//
+
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//
+//===-----------------------------------------------------------------------===//
+
+/*
+ // A driver program of SVF including usages of SVF APIs
+ //
+ // Author: Yulei Sui,
+ */
+#include <memory>
+#include "AE/Core/AbstractState.h"
+#include "Graphs/SVFG.h"
+#include "SVF-LLVM/LLVMUtil.h"
+#include "SVF-LLVM/SVFIRBuilder.h"
+#include "Util/CommandLine.h"
+#include "Util/Options.h"
+#include "WPA/Andersen.h"
+#include "MTA/MTA.h"
+#include "/home/cs23mtech12010/CCM/SVF-SVF-3.0/svf/include/MTA/TCT.h"
+#include "/home/cs23mtech12010/CCM/SVF-SVF-3.0/svf/include/MTA/MHP.h"
+#include "/home/cs23mtech12010/CCM/SVF-SVF-3.0/svf/include/MTA/MTA.h"
+#include "/home/cs23mtech12010/CCM/SVF-SVF-3.0/svf/include/MemoryModel/PointerAnalysis.h"
+#include "Util/Options.h"
+#include "WPA/WPAStat.h"
+#include "WPA/FlowSensitive.h"
+#include "WPA/Andersen.h"
+#include "MemoryModel/PointsTo.h"
+using namespace llvm;
+using namespace std;
+using namespace SVF;
+
+/*!
+ * An example to query alias results of two SVF values
+ */
+SVF::AliasResult aliasQuery(PointerAnalysis* pta, const SVFVar* v1, const SVFVar* v2)
+{
+
+    return pta->alias(v1->getId(), v2->getId());
+}
+
+/*!
+ * An example to print points-to set of an SVF value
+ */
+std::string printPts(PointerAnalysis* pta, const SVFVar* svfval)
+{
+
+
+    std::string str;
+    raw_string_ostream rawstr(str);
+
+    NodeID pNodeId = svfval->getId();
+
+    if(!isa<SVF::FunValVar>(svfval))
+  {  
+    
+    const PointsTo& pts = pta->getPts(pNodeId);
+
+    for (PointsTo::iterator ii = pts.begin(), ie = pts.end();
+            ii != ie; ii++)
+    {
+        rawstr << " " << *ii << " ";
+        PAGNode* targetObj = pta->getPAG()->getGNode(*ii);
+        rawstr << "(" << targetObj->valueOnlyToString() << ")\t ";
+    }
+
+    
+}
+return rawstr.str();
+}
+/*!
+ * An example to query/collect all successor nodes from a ICFGNode (iNode) along control-flow graph (ICFG)
+ */
+std::vector<const CallICFGNode*> traverseOnICFG(ICFG* icfg, const ICFGNode* iNode,ThreadCallGraph* tcg)
+{
+    std::vector<const CallICFGNode*>  jnodes ;
+    FIFOWorkList<const ICFGNode*> worklist;
+    Set<const ICFGNode*> visited;
+    worklist.push(iNode);
+
+    //errs()<<" ------------------initially ---------------\n";
+    // iNode->dump();
+    /// Traverse along VFG
+    while (!worklist.empty())
+    {
+        const ICFGNode* vNode = worklist.pop();
+
+        const CallICFGNode* join = SVFUtil::dyn_cast<CallICFGNode>(vNode);
+
+        if(join && tcg->getThreadAPI()->isTDJoin(join)){
+                     
+        // errs()<<" traversing the ICFG -----------\n";
+
+        // join->dump();
+            jnodes.push_back(join);
+        }
+
+        // vNode->dump();
+        for (ICFGNode::const_iterator it = vNode->OutEdgeBegin(), eit =
+                    vNode->OutEdgeEnd(); it != eit; ++it)
+        {
+            ICFGEdge* edge = *it;
+            ICFGNode* succNode = edge->getDstNode();
+            if (visited.find(succNode) == visited.end())
+            {
+
+                visited.insert(succNode);
+                worklist.push(succNode);
+            }
+        }
+    }
+    return jnodes;
+}
+
+void dummyVisit(const VFGNode* node)
+{
+
+
+}
+void func3(TCT * tct){
+
+
+}
+
+/*!
+ * An example to query/collect all the uses of a definition of a value along value-flow graph (VFG)
+ */
+void traverseOnVFG(const SVFG* vfg, const SVFVar* svfval)
+{
+
+    if (!vfg->hasDefSVFGNode(svfval))
+       { 
+        
+      //  errs()<<" -----------------first step return----------------\n ";
+        return;
+    }
+
+    const VFGNode* vNode = vfg->getDefSVFGNode(svfval);
+    FIFOWorkList<const VFGNode*> worklist;
+    Set<const VFGNode*> visited;
+    worklist.push(vNode);
+
+    /// Traverse along VFG
+    while (!worklist.empty())
+    {
+        const VFGNode* vNode = worklist.pop();
+        for (VFGNode::const_iterator it = vNode->OutEdgeBegin(), eit =
+                    vNode->OutEdgeEnd(); it != eit; ++it)
+        {
+            VFGEdge* edge = *it;
+            VFGNode* succNode = edge->getDstNode();
+            if (visited.find(succNode) == visited.end())
+            {
+                visited.insert(succNode);
+                worklist.push(succNode);
+            }
+        }
+    }
+
+    /// Collect all LLVM Values
+    for(Set<const VFGNode*>::const_iterator it = visited.begin(), eit = visited.end(); it!=eit; ++it)
+    {
+        const VFGNode* node = *it;
+        dummyVisit(node);
+        /// can only query VFGNode involving top-level pointers (starting with % or @ in LLVM IR)
+        /// PAGNode* pNode = vfg->getLHSTopLevPtr(node);
+        /// Value* val = pNode->getValue();
+    }
+}
+void func(SVFIR* a ){
+
+    
+}
+void func1( PointerAnalysis* a){
+
+}
+
+std::string VarName(const llvm:: Instruction * II){
+
+    llvm::Function* F = const_cast<llvm::Function*>(II->getFunction());
+
+    for( BasicBlock &BB : *F){
+
+        for( Instruction &I :BB){
+
+            if(auto x =dyn_cast<DbgDeclareInst>(&I)){
+
+                errs()<<x->getVariable()->getName().str()<<" got into function   \n";
+
+                return x->getVariable()->getName().str();
+
+            }
+
+        }
+    }
+
+    return "b";
+}
+
+// void iterateAndCheckValueNodes(SVFIR* svfir) {
+//     // Get all ICFG nodes (instructions)
+//     for (const ICFGNode* icfgNode : svfir->getICFG()->getICFGNode()) {
+//         // Get all SVF statements for this instruction
+//         const SVFIR::SVFStmtList& stmtList = svfir->getSVFStmtList(icfgNode);
+
+//         for (const SVFStmt* stmt : stmtList) {
+//             // Get source and destination nodes of the statement
+//             const SVFVar* src = stmt->getSrcNode();
+//             const SVFVar* dst = stmt->getDstNode();
+
+//             // Check if they are value nodes
+//             if (const ValVar* srcVal = SVFUtil::dyn_cast<ValVar>(src)) {
+//                 std::cout << "Found Value Node: " << srcVal->getId() << " (Source)\n";
+//             }
+//             if (const ValVar* dstVal = SVFUtil::dyn_cast<ValVar>(dst)) {
+//                 std::cout << "Found Value Node: " << dstVal->getId() << " (Destination)\n";
+//             }
+//         }
+//     }
+// }
+
+void fun(const SVFVar * x)  {}
+void fun4(MHP *mhp){}
+
+
+int main(int argc, char ** argv)
+{
+
+        std::vector<std::string> moduleNameVec;
+        moduleNameVec = OptionBase::parseOptions(
+                            argc, argv, "Whole Program Points-to Analysis", "[options] <input-bitcode...>"
+                        );
+
+    if (Options::WriteAnder() == "ir_annotator")
+    {
+        LLVMModuleSet::preProcessBCs(moduleNameVec);
+    }
+
+    SVFModule* svfModule = LLVMModuleSet::buildSVFModule(moduleNameVec);
+
+    /// Build Program Assignment Graph (SVFIR)
+    SVFIRBuilder builder(svfModule);
+    SVFIR* pag = builder.build();
+
+
+    MTA mta;
+    mta.runOnModule(pag);
+    // TCT tct(pta);
+    func(pag);
+
+//     // /// Create Andersen's pointer analysis
+//     Andersen* ander = AndersenWaveDiff::createAndersenWaveDiff(pag);
+    // PointerAnalysis::PTATY analysisType = PTATY::FSSPARSE_WPA;
+
+
+    // std::unique_ptr<SVF::PointerAnalysis> pta = std::unique_ptr<SVF::PointerAnalysis>(SVF::FlowSensitive::createFSWPA(pag));
+
+    // PointerAnalysis pta;
+   
+
+    // func1(pta);
+
+  MHP *mhp = mta.getMHP();
+    TCT * tct =  mhp->getTCT();
+    func3(tct);
+    fun4(mhp);
+    // tct->print();
+
+    // errs()<<"printing interleaving results -------------------------\n";
+
+    // mhp->getDirAndIndJoinedTid();
+    ICFG* icfg = pag->getICFG();
+
+    // errs()<<" printing each thread info first   \n\n\n\n";
+    // for (const std::pair<const NodeID, TCTNode*>& tpair : *tct){
+
+    //     NodeID  id = tpair.first;
+    //     TCTNode* current_thred = tct->getTCTNode(id);
+    //     current_thred->dump();
+    //     const CxtThread& ct = tpair.second->getCxtThread();
+    //     auto ctx =ct.getContext();
+    //     errs()<<"-------------------------------dumping context of the thread  ----------------\n";
+    //     ct.dump();
+     
+
+    //     for( auto i : ctx){
+
+    //         errs()<<i<<"  ";
+    //     }
+    //     errs()<<"\n\n ";
+
+
+    //     errs()<<"-------------------------------done -dumping context of the thread  ----------------\n";
+
+    // }
+    // errs()<<"\n\n\n";
+    // errs()<<"------- analyzing all the joins in each thread  ---------  \n";
+    // errs()<<"\n\n\n";
+    for (const std::pair<const NodeID, TCTNode*>& tpair : *tct)
+    {
+        const CxtThread& ct = tpair.second->getCxtThread();
+        std::vector<u32_t> ctx =ct.getContext();
+        // errs()<<"-------------------------------dumping context of the thread  ----------------\n";
+        // ct.dump();
+        // errs()<<"-------------------------------done -dumping context of the thread  ----------------\n";
+        NodeID  id = tpair.first;
+        // TCTNode* thread_node = tpair.second;
+        const auto  routine = tct->getStartRoutineOfCxtThread(ct);
+        const ICFGNode* svfInst = routine->getEntryBlock()->front();
+        // if(auto pp = SVFUtil::dyn_cast<llvm::BasicBlock>(LLVMModuleSet::getLLVMModuleSet()->getLLVMValue(routine->getEntryBlock())))
+        //                 {
+        //                             llvm::errs()<<*pp<<"*******Basic block printing ********** \n";
+        //                 }
+        auto tcg = tct->getThreadCallGraph();
+        std::vector<const CallICFGNode* > jnodes = traverseOnICFG(icfg, svfInst,tcg);
+        // errs()<<"----------------finally-----------------\n" ;
+        // NodeBS getDirAndIndJoinedTid(const CallStrCxt& cxt, const ICFGNode* call);
+        // if(jnode)
+        // jnode->dump();
+        TCTNode* current_thred = tct->getTCTNode(id);
+        errs()<<"\n\n\n<<<<<<<<<<<<<<<<<<<<<<<<current analysing thread >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n \n";
+        current_thred->dump();
+    //     for (const CallICFGNode* jnode : jnodes)
+    //     {
+                
+    //         // CxtStmt cs(cxt, call);
+    //             jnode->dump();
+    //             // isAliasedForkJoin(SVFUtil::cast<CallICFGNode>(forkSite), SVFUtil::cast<CallICFGNode>(joinSite))  use this to get the threadID
+    //             // TCTNode* joined_node = tct->getTCTNode(jnode->getId());
+    //             // joined_node->dump();
+    //             errs()<<"\n <<<<<<<<<<<<<<<<<<<<<<<jnode >>>>>>>>>>>>>>>>>>>>>>> \n\n";
+    //            // ctx.dump();
+    //             // auto joins_ids = mhp->getDirAndIndJoinedTid(ctx,jnode);
+    //             // errs()<<" \n\n\n <<<<<<<<<<<<<<<<<<<<<<<<list of threads joined in the current analysing thread >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n\n";
+    //             // for (const unsigned i : joins_ids)
+    //             // {
+    //             //     TCTNode* joined_node = tct->getTCTNode(i);
+    //             //     joined_node->dump();
+    //             //     errs()<<"\n <<<<<<<<<<<<<<<<<<<<<<<jnode >>>>>>>>>>>>>>>>>>>>>>> \n\n";
+    //             // }
+    //         // errs()<<ct.cxtToStr()<<"  \n";
+
+
+    // }
+}
+//mhp->printInterleaving();
+
+//    SVFGBuilder svfBuilder;
+//  PointerAnalysis* pta = SVF::FlowSensitive::createFSWPA(pag);
+// //PointerAnalysis* pta  =tct->getPTA();
+//  SVFG* svfg = svfBuilder.buildFullSVFG(dyn_cast<SVF::BVDataPTAImpl>(pta));
+
+// if(1)
+//     {
+//         for (const auto& it : *svfg)
+//         {
+//             const SVFGNode* node = it.second;
+//             if (node->getValue())
+//             {
+
+//                // traverseOnVFG(svfg, node->getValue());
+//                 /// Print points-to information
+
+
+//                 // errs()<<printPts(pta, node->getValue());
+
+//                 if(printPts(pta, node->getValue())!="")
+//                { 
+//                 errs()<<"\n\n------ pointer  ------\n\n";
+
+//                 auto val = node->getValue();
+//                 val->dump();
+//                 errs()<<"\n\n------ points to  ------\n\n";
+//                 errs()<<printPts(pta, node->getValue());
+//             }
+              
+//                 // for (const SVFGEdge* edge : node->getOutEdges())
+//                 // {
+//                 //     const SVFGNode* node2 = edge->getDstNode();
+//                 //     if (node2->getValue())
+//                 //         aliasQuery(pta, node->getValue(), node2->getValue());
+//                 // }
+//             }
+//         }
+//     }
+    // mhp->printInterleaving();
+
+    // iterateAndCheckValueNodes(pag);
+    // MH= new MHP(TCT);
+    // MTA mta;
+    // mta.runOnModule(pag);
+
+    // /// Call Graph
+//     CallGraph* callgraph = pta->getCallGraph();
+
+//     // ICFG
+    
+//   VFG* vfg = new VFG(callgraph);
+//     for( auto x : vfg->VFGEdgeSetTy)
+//     {
+//         if(x.second->isIndirectVFGEdge()){
+//             errs()<<" got indirect edge  \n";
+//         }
+//     }
+
+    // for(llvm:: Function  &F: M){
+
+    //     llvm::errs()<<F;
+    // }
+
+    // /// Value-Flow Graph (VFG)
+    // VFG* vfg = new VFG(callgraph);
+
+    // /// Sparse value-flow graph (SVFG)
+    // SVFGBuilder svfBuilder;
+    // SVFG* svfg = svfBuilder.buildFullSVFG(ander);
+
+    // /// Collect uses of an LLVM Value
+    // if (1)
+    // {
+    //     int i=0;
+    //     for (const auto& it : *svfg)
+    //     {
+    //         i++;
+            
+    //         const SVFGNode* node = it.second;
+
+
+    //         if (node->getValue())
+    //         {   
+    //                 auto val = node->getValue();
+                    
+    //             if(auto y = dyn_cast<SVF::ValVar>(val))
+    //                 {
+
+    //                     if(auto pp = SVFUtil::dyn_cast<llvm::Instruction>(LLVMModuleSet::getLLVMModuleSet()->getLLVMValue(y)))
+    //                     {
+    //                         // val->dump();
+    //                             if( VarName(pp)=="a"){
+
+    //                                 llvm::errs()<<*pp<<"***************** \n";
+
+    //                             }
+    //                     }
+                                
+    //                 }
+    //                 // traverseOnVFG(svfg, node->getValue());
+    //                 // /// Print points-to information
+    //                 // printPts(  pta, node->getValue());
+    //                 // for (const SVFGEdge* edge : node->getOutEdges())
+
+    //                 // {
+    //                 //     const SVFGNode* node2 = edge->getDstNode();
+    //                 //     if (node2->getValue())
+    //                 //     {
+    //                 //         auto fun = aliasQuery(pta, node->getValue(), node2->getValue());
+
+    //                 //         if(fun == aliasTest::MustAlias || fun == aliasTest::MustAliasMangled){
+    //                 //             errs()<<" found some aliasses  \n\n\n";
+                            
+    //                 //             // node->dump();
+
+    //                 //             // node2->dump();
+
+    //                 //         }
+    //                 //     }
+    //                 // }
+    //         }
+    //         // if(i==7)
+    //         // {break;}
+    //     }
+    // }
+
+    // /// Collect all successor nodes on ICFG
+    // if (Options::PTSPrint())
+    // {
+    // errs()<<"svf is fone now its ifg !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n";
+    //     for (const auto& it : *icfg)
+    //     {
+
+    //         const ICFGNode* node = it.second;
+    //         errs()<<" teh node dumpin si started  )))))))))))))))))))))))))))))))))))))))))))))))))))))))))\n";
+
+    //         node->dump();
+    //       errs()<<" teh node dumpin si completed )))))))))))))))))))))))))))))))))))))))))))))))))))))))))\n";
+    //         llvm::errs()<<" has ICFG ndoes\n";
+    //             for(auto x : node->getVFGNodes()){
+
+                  
+
+    //                 if(const SVF::SVFVar *val = x->getValue()){
+
+    //                     if(auto y = dyn_cast<SVF::ValVar>(val))
+    //                     {
+    //                         if(auto pp = SVFUtil::dyn_cast<llvm::Value>(LLVMModuleSet::getLLVMModuleSet()->getLLVMValue(y)))
+    //                         {
+    //                             // val->dump();
+    //                             llvm::errs()<<*pp<<"***************** \n";
+    //                         }
+    //                     }
+    //                 //   val->dump();
+    //             }
+    //         }
+
+    //     //     errs()<<" done with the current ICFG nodes $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ \n";
+
+    //             // llvm::errs()<<node->getVFGNodes()
+    //             // if(const BasicBlock* exitBB = SVFUtil::dyn_cast<BasicBlock>(LLVMModuleSet::getLLVMModuleSet()->getLLVMValue(node->getBB())))
+    //             // {
+
+
+
+    //             //     const llvm::Value *pValue = &exitBB->front();
+    //             //     llvm::errs()<<*pValue;
+    //             //     // auto y=node->getNodeKind();
+    //             //     // cout<<" the curresponding inst is\n"<<
+
+    //             // }
+                
+            
+         
+    //         // traverseOnICFG(icfg, node);
+    //         break;
+        
+    // }
+
+
+    // clean up memory
+    // delete vfg;
+    // AndersenWaveDiff::releaseAndersenWaveDiff();
+    // SVFIR::releaseSVFIR();
+
+    // LLVMModuleSet::getLLVMModuleSet()->dumpModulesToFile(".svf.bc");
+    // SVF::LLVMModuleSet::releaseLLVMModuleSet();
+    // llvm::llvm_shutdown();
+    return 0;
+}
