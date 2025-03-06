@@ -123,7 +123,9 @@ MHP* MTA::computeMHP(SVFModule* module)
     DBOUT(DGENERAL, outs() << pasMsg("MTA analysis\n"));
     DBOUT(DMTA, outs() << pasMsg("MTA analysis\n"));
     SVFIR* pag = PAG::getPAG();
-    PointerAnalysis* pta = AndersenWaveDiff::createAndersenWaveDiff(pag);
+    // PointerAnalysis* pta = AndersenWaveDiff::createAndersenWaveDiff(pag);
+    PointerAnalysis* pta = new FlowSensitive(pag);
+    pta->analyze();
     pta->getPTACallGraph()->dump("ptacg");
 
     DBOUT(DGENERAL, outs() << pasMsg("Build TCT\n"));

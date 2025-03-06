@@ -132,10 +132,10 @@
          }
      }
  
-     /// update non-candidate functions' interleaving
-     updateNonCandidateFunInterleaving();
+        /// update non-candidate functions' interleaving
+        updateNonCandidateFunInterleaving();
  
-    // if (Options::PrintInterLev())
+        // if (Options::PrintInterLev())
          printInterleaving();
  }
  
@@ -239,6 +239,7 @@
      assert(isTDJoin(call));
  
      NodeBS joinedTids = getDirAndIndJoinedTid(curCxt, call);
+     
      if (!joinedTids.empty())
      {
          if (fja->hasJoinLoop(call))
@@ -259,7 +260,7 @@
          else
          {
              rmInterleavingThread(cts, joinedTids, call);
-            std::cout << "\n\t MHP match join site " << call->toString() << " for thread " << rootTid << "\n";
+            
          }
      }
      /// for the join site in a loop loop which does not join the current thread
@@ -723,6 +724,7 @@
              const InstVec& nextInsts = forkInst->getSuccInstructions();
              for (const SVFInstruction* ni : nextInsts)
              {
+                std::cout<<" the statements being added are "<< ni->toString()<<" \n";
                  CxtStmt cs(forkSiteCxt, ni);
                  markCxtStmtFlag(cs, TDAlive);
              }
@@ -731,13 +733,15 @@
              {
                  CxtStmt cts = popFromCTSWorkList();
                  const SVFInstruction* curInst = cts.getStmt();
-                 std::cout << "-----\nForkJoinAnalysis root thread: " << tpair.first << " ";
-                 cts.dump();
-                 std::cout<< "-----\n";
+
+                 std::cout<< "statements popping from the cxtstmtList are  "<<curInst->toString()<<" \n";
+                 //std::cout << "-----\nForkJoinAnalysis root thread: " << tpair.first << " ";
+                 //cts.dump();
+                 //std::cout<< "-----\n";
                  PTACallGraph::FunctionSet callees;
                  if (isTDFork(curInst))
                  {
-                     std::cout<<" handling the fork stmt \n";
+                     //std::cout<<" handling the fork stmt \n";
                      handleFork(cts, rootTid);
                  }
                  else if (isTDJoin(curInst))
@@ -776,6 +780,7 @@
  {
      std::cout<<"\n ***************handligng the fork site*************** \n";
      const SVFInstruction* call = cts.getStmt();
+     std::cout<<"---------------------- "<<call->toString()<<"----------- this is important -----------------";
      const CallStrCxt& curCxt = cts.getContext();
  
      assert(isTDFork(call));
@@ -797,6 +802,11 @@
          }
      }
      handleIntra(cts);
+    //  CallStrCxt newCxt = curCxt;
+    //  pushCxt(newCxt, call, svfcallee);
+    //  const SVFInstruction* svfEntryInst = svfcallee->getEntryBlock()->front();
+    //  CxtStmt newCts(newCxt, svfEntryInst);
+    //  markCxtStmtFlag(newCts, cts);
  }
  
  /// Handle join
@@ -805,7 +815,6 @@
      std::cout<<" ***************handligng the join site*************** \n";
      const SVFInstruction* call = cts.getStmt();
      const CallStrCxt& curCxt = cts.getContext();
- 
      assert(isTDJoin(call));
      CallICFGNode* cbn = getCBN(call);
      if (getTCG()->hasCallGraphEdge(cbn))
@@ -815,8 +824,10 @@
  
          if (isAliasedForkJoin(forkSite, joinSite))
          {
+            std::cout<<" ------------------they are aliases--------------------------- \n";
              if (hasJoinLoop(joinSite))
              {
+                std::cout<<" this is not happening \n";
                  LoopBBs& joinLoop = getJoinLoop(joinSite);
                  std::vector<const SVFBasicBlock *> exitbbs;
                  joinSite->getFunction()->getExitBlocksOfLoop(joinSite->getParent(), exitbbs);
@@ -838,16 +849,18 @@
              }
              else
              {
+                std::cout << "\n\t nice join site matched " << call->toString() << "for thread " << rootTid << "\n";
                  markCxtStmtFlag(cts, TDDead);
                  addDirectlyJoinTID(cts, rootTid);
-                 std::cout << "\n\t match join site " << call->toString() << "for thread " << rootTid << "\n";
+                
              }
          }
          /// for the join site in a loop loop which does not join the current thread
          /// we process the loop exit
          else
          {
-             if (hasJoinLoop(joinSite))
+            std::cout << "\n\t not alias dude MHP  match join site " << call->toString() << " for thread " << rootTid << "\n";
+            if (hasJoinLoop(joinSite))
              {
                  std::vector<const SVFBasicBlock*> exitbbs;
                  joinSite->getFunction()->getExitBlocksOfLoop(joinSite->getParent(), exitbbs);

@@ -209,7 +209,6 @@ void ThreadCallGraph::addDirectJoinEdge(const CallICFGNode* cs,const CallSiteSet
             assert(cs->getCaller() == joinFunNode->getFunction() && "callee instruction not inside caller??");
             ThreadJoinEdge* edge = new ThreadJoinEdge(joinFunNode,threadRoutineFunNode,csId);
             edge->addDirectCallSite(cs);
-
             addThreadJoinEdgeSetMap(cs, edge);
         }
     }

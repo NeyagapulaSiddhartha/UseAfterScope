@@ -419,4 +419,4 @@ private:
 
 } // End namespace SVF
 
-#endif /* RCG_H_ */
+#endif  /* RCG_H_ */

@@ -84,6 +84,10 @@ public:
     {
         return tct;
     }
+    inline ForkJoinAnalysis* getfja() const
+    {
+        return fja;
+    }
 
     // Get CallICFGNode
     inline CallICFGNode* getCBN(const SVFInstruction* inst)
@@ -139,7 +143,7 @@ public:
     /// Print interleaving results
     void printInterleaving();
 
-private:
+public:
 
     inline const PTACallGraph::FunctionSet& getCallee(const SVFInstruction* inst, PTACallGraph::FunctionSet& callees)
     {
@@ -362,7 +366,10 @@ public:
         const SVFInstruction* inst = parentRoutine->getExitBB()->back();
         return inst;
     }
-
+    inline const SVFValue* getJoinedThread(const SVFInstruction* call)
+    {
+        return getTCG()->getThreadAPI()->getJoinedThread(call);
+    }
     /// Get loop for join site
     inline LoopBBs& getJoinLoop(const SVFInstruction* inst)
     {
@@ -398,8 +405,8 @@ private:
     /// Whether it is a matched fork join pair
     bool isAliasedForkJoin(const SVFInstruction* forkSite, const SVFInstruction* joinSite)
     {
-        std::cout<<" the forked thread is "<<getForkedThread(forkSite)->toString()<<" \n";
-        std::cout<<" the joined thread is "<<getJoinedThread(joinSite)->toString()<<" \n";
+        // std::cout<<" the forked thread is "<<getForkedThread(forkSite)->toString()<<" \n";
+        // std::cout<<" the joined thread is "<<getJoinedThread(joinSite)->toString()<<" \n";
 
         return tct->getPTA()->alias(getForkedThread(forkSite), getJoinedThread(joinSite)) && isSameSCEV(forkSite,joinSite);
     }
@@ -501,10 +508,7 @@ private:
         return getTCG()->getThreadAPI()->getForkedThread(call);
     }
     /// Get joined thread
-    inline const SVFValue* getJoinedThread(const SVFInstruction* call)
-    {
-        return getTCG()->getThreadAPI()->getJoinedThread(call);
-    }
+
     inline const PTACallGraph::FunctionSet& getCallee(const SVFInstruction* inst, PTACallGraph::FunctionSet& callees)
     {
         getTCG()->getCallees(getCBN(inst), callees);
