@@ -379,7 +379,7 @@ public:
     {
         return tct->hasJoinLoop(inst);
     }
-private:
+
 
     /// Handle fork
     void handleFork(const CxtStmt& cts,NodeID rootTid);

@@ -724,7 +724,7 @@
              const InstVec& nextInsts = forkInst->getSuccInstructions();
              for (const SVFInstruction* ni : nextInsts)
              {
-                std::cout<<" the statements being added are "<< ni->toString()<<" \n";
+                 std::cout<<" the statements being added are "<< ni->toString()<<" \n";
                  CxtStmt cs(forkSiteCxt, ni);
                  markCxtStmtFlag(cs, TDAlive);
              }
@@ -799,14 +799,15 @@
                  addToHBPair(rootTid, tct->getTCTNode(ct)->getId());
              else
                  addToHPPair(rootTid, tct->getTCTNode(ct)->getId());
+            
+            const SVFInstruction* svfEntryInst = callee->getEntryBlock()->front();
+            CxtStmt newCts(newCxt, svfEntryInst);
+            markCxtStmtFlag(newCts, cts);
          }
      }
      handleIntra(cts);
-    //  CallStrCxt newCxt = curCxt;
-    //  pushCxt(newCxt, call, svfcallee);
-    //  const SVFInstruction* svfEntryInst = svfcallee->getEntryBlock()->front();
-    //  CxtStmt newCts(newCxt, svfEntryInst);
-    //  markCxtStmtFlag(newCts, cts);
+
+
  }
  
  /// Handle join
@@ -824,6 +825,7 @@
  
          if (isAliasedForkJoin(forkSite, joinSite))
          {
+
             std::cout<<" ------------------they are aliases--------------------------- \n";
              if (hasJoinLoop(joinSite))
              {
@@ -849,7 +851,7 @@
              }
              else
              {
-                std::cout << "\n\t nice join site matched " << call->toString() << "for thread " << rootTid << "\n";
+                std::cout << "\n\t nice join site matched " << call->toString() << "for thread " << forkSite->toString() << "\n";
                  markCxtStmtFlag(cts, TDDead);
                  addDirectlyJoinTID(cts, rootTid);
                 
@@ -859,7 +861,8 @@
          /// we process the loop exit
          else
          {
-            std::cout << "\n\t not alias dude MHP  match join site " << call->toString() << " for thread " << rootTid << "\n";
+            
+            std::cout << "\n\t not alias dude MHP  match join site " << call->toString() << " for thread " << forkSite->toString() << "\n";
             if (hasJoinLoop(joinSite))
              {
                  std::vector<const SVFBasicBlock*> exitbbs;
@@ -891,15 +894,19 @@
                  ecgIt = getTCG()->getCallEdgeEnd(cbn);
                  cgIt != ecgIt; ++cgIt)
          {
+
              const SVFFunction* svfcallee = (*cgIt)->getDstNode()->getFunction();
+             std::cout<<" the callee function is "<<svfcallee->getName()<<"\n";
              if (isExtCall(svfcallee))
                  continue;
              CallStrCxt newCxt = curCxt;
              pushCxt(newCxt, call, svfcallee);
              const SVFInstruction* svfEntryInst = svfcallee->getEntryBlock()->front();
-             CxtStmt newCts(newCxt, svfEntryInst);
+             CxtStmt newCts(newCxt , svfEntryInst);
              markCxtStmtFlag(newCts, cts);
+
          }
+         std::cout<<" the call site is not in the call graph \n";
      }
  }
  
